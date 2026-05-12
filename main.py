@@ -7,33 +7,53 @@ import traceback
 
 print("Starting Discord bot...")
 
+# ============================================
+# IMPORT BOT FILES
+# ============================================
+
 try:
 
     import bot
-    print("bot.py imported successfully")
+
+    print(
+        "bot.py imported successfully"
+    )
 
 except Exception as e:
 
-    print("FAILED TO IMPORT bot.py")
+    print(
+        "FAILED TO IMPORT bot.py"
+    )
+
     print(e)
+
     traceback.print_exc()
 
-    input("Press ENTER to exit...")
     raise
 
 try:
 
     import bot2
-    print("bot2.py imported successfully")
+
+    print(
+        "bot2.py imported successfully"
+    )
 
 except Exception as e:
 
-    print("FAILED TO IMPORT bot2.py")
+    print(
+        "FAILED TO IMPORT bot2.py"
+    )
+
     print(e)
+
     traceback.print_exc()
 
-    input("Press ENTER to exit...")
     raise
+
+# ============================================
+# MAIN STARTUP
+# ============================================
 
 async def main():
 
@@ -41,10 +61,12 @@ async def main():
 
         await bot.init_db()
 
-        print("Database initialized successfully")
+        print(
+            "Database initialized successfully"
+        )
 
         print(
-            f"Logging in as bot..."
+            "Logging in as bot..."
         )
 
         await bot.bot.start(
@@ -61,9 +83,11 @@ async def main():
 
         traceback.print_exc()
 
-        input(
-            "\nPress ENTER to close..."
-        )
+        raise
+
+# ============================================
+# ENTRY POINT
+# ============================================
 
 if __name__ == "__main__":
 
