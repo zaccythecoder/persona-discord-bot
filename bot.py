@@ -2,112 +2,63 @@
 # bot.py
 # ================================
 
-import os
 import discord
 from discord.ext import commands
 import aiosqlite
 import asyncio
+import os
 import re
 from datetime import datetime
 from textblob import TextBlob
 from groq import Groq
-from collections import Counter
 
 # =========================================================
-# CONFIG
+# ENV VARIABLES
 # =========================================================
 
-def load_config():
+TOKEN = os.getenv("TOKEN")
 
-    config = {}
+PREFIX = os.getenv("PREFIX", "!")
 
-    with open(
-        "bot.config",
-        "r",
-        encoding="utf-8"
-    ) as f:
-
-        for line in f:
-
-            line = line.strip()
-
-            if not line:
-                continue
-
-            if line.startswith("#"):
-                continue
-
-            if "=" in line:
-
-                key, value = line.split(
-                    "=",
-                    1
-                )
-
-                config[
-                    key.strip()
-                ] = value.strip()
-
-    return config
-
-config = {}
-
-if os.path.exists("bot.config"):
-    config = load_config()
-
-TOKEN = os.getenv(
-    "TOKEN",
-    config.get("TOKEN")
-)
-
-PREFIX = os.getenv(
-    "PREFIX",
-    config.get(
-        "PREFIX",
-        "!"
-    )
-)
-
-GROQ_KEY = os.getenv(
-    "GROQ_KEY",
-    config.get("GROQ_KEY")
-)
-
-DB_NAME = os.getenv(
+DATABASE = os.getenv(
     "DATABASE",
-    config.get(
-        "DATABASE",
-        "persona.db"
-    )
+    "persona.db"
 )
 
 MODEL_NAME = os.getenv(
     "MODEL",
-    config.get(
-        "MODEL",
-        "llama-3.3-70b-versatile"
-    )
+    "llama-3.3-70b-versatile"
 )
 
-OWNER_ID = 1449536595060330588
+# =========================================================
+# GROQ KEY FIX
+# =========================================================
 
-# =========================================================
-# GROQ
-# =========================================================
+GROQ_KEY = (
+    os.getenv("GROQ_KEY")
+    or os.getenv("GROQ_API_KEY")
+)
+
+if not GROQ_KEY:
+
+    raise Exception(
+        "Missing GROQ_KEY / GROQ_API_KEY environment variable"
+    )
 
 groq_client = Groq(
     api_key=GROQ_KEY
 )
 
 # =========================================================
-# INTENTS
+# DISCORD BOT
 # =========================================================
 
 intents = discord.Intents.all()
 
 bot = commands.Bot(
     command_prefix=PREFIX,
-    intents=intents
+    intents=intents,
+    help_command=None
 )
 
 # =========================================================
@@ -119,158 +70,180 @@ db = None
 db_lock = asyncio.Lock()
 
 # =========================================================
-# TABLES
+# OWNER DM CHECK
 # =========================================================
 
-CREATE_USERS_TABLE = """
-CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    username TEXT,
-    total_messages INTEGER DEFAULT 0,
-    total_words INTEGER DEFAULT 0,
-    avg_sentiment REAL DEFAULT 0,
-    morning_msgs INTEGER DEFAULT 0,
-    afternoon_msgs INTEGER DEFAULT 0,
-    night_msgs INTEGER DEFAULT 0,
-    emojis_used INTEGER DEFAULT 0,
-    questions_asked INTEGER DEFAULT 0,
-    replies_sent INTEGER DEFAULT 0,
-    manual_notes TEXT DEFAULT ''
-)
-"""
+OWNER_ID = 1449536595060330588
 
-CREATE_WORDS_TABLE = """
-CREATE TABLE IF NOT EXISTS words (
-    user_id INTEGER,
-    word TEXT,
-    count INTEGER,
-    PRIMARY KEY (user_id, word)
-)
-"""
+async def owner_dm_only(ctx):
 
-CREATE_MESSAGE_TABLE = """
-CREATE TABLE IF NOT EXISTS message_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    message_id INTEGER UNIQUE,
-    user_id INTEGER,
-    content TEXT
-)
-"""
+    if not isinstance(
+        ctx.channel,
+        discord.DMChannel
+    ):
+        return False
 
-CREATE_GAMES_TABLE = """
-CREATE TABLE IF NOT EXISTS games (
-    user_id INTEGER,
-    game_name TEXT,
-    first_seen TEXT,
-    last_seen TEXT,
-    times_seen INTEGER DEFAULT 1,
-    PRIMARY KEY (user_id, game_name)
-)
-"""
-
-CREATE_SCANNED_MESSAGES_TABLE = """
-CREATE TABLE IF NOT EXISTS scanned_messages (
-    message_id INTEGER PRIMARY KEY
-)
-"""
+    return ctx.author.id == OWNER_ID
 
 # =========================================================
-# HELPERS
-# =========================================================
-
-EMOJI_PATTERN = re.compile(
-    "["
-    "\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F1E0-\U0001F1FF"
-    "]+",
-    flags=re.UNICODE,
-)
-
-def clean_words(text):
-
-    return re.findall(
-        r"\b[a-zA-Z']+\b",
-        text.lower()
-    )
-
-def get_time_bucket(hour=None):
-
-    if hour is None:
-        hour = datetime.now().hour
-
-    if 5 <= hour < 12:
-        return "morning_msgs"
-
-    elif 12 <= hour < 18:
-        return "afternoon_msgs"
-
-    else:
-        return "night_msgs"
-
-def calculate_sentiment(text):
-
-    try:
-
-        return TextBlob(
-            text
-        ).sentiment.polarity
-
-    except:
-        return 0
-
-# =========================================================
-# DATABASE INIT
+# INIT DB
 # =========================================================
 
 async def init_db():
 
     global db
 
-    if db is not None:
+    if db:
         return
 
     db = await aiosqlite.connect(
-        DB_NAME,
-        timeout=60
+        DATABASE
     )
 
     await db.execute(
-        "PRAGMA journal_mode=WAL;"
+        "PRAGMA journal_mode=WAL"
     )
 
     await db.execute(
-        "PRAGMA synchronous=NORMAL;"
+        "PRAGMA synchronous=NORMAL"
     )
 
-    await db.execute(
-        "PRAGMA temp_store=MEMORY;"
-    )
+    # =====================================================
+    # USERS
+    # =====================================================
 
     await db.execute(
-        "PRAGMA busy_timeout=60000;"
+        """
+        CREATE TABLE IF NOT EXISTS users (
+
+            user_id INTEGER PRIMARY KEY,
+
+            username TEXT,
+
+            total_messages INTEGER DEFAULT 0,
+
+            total_words INTEGER DEFAULT 0,
+
+            avg_sentiment REAL DEFAULT 0,
+
+            morning_msgs INTEGER DEFAULT 0,
+
+            afternoon_msgs INTEGER DEFAULT 0,
+
+            night_msgs INTEGER DEFAULT 0,
+
+            emojis_used INTEGER DEFAULT 0,
+
+            questions_asked INTEGER DEFAULT 0,
+
+            replies_sent INTEGER DEFAULT 0,
+
+            manual_notes TEXT DEFAULT ''
+        )
+        """
     )
 
-    await db.execute(
-        CREATE_USERS_TABLE
-    )
+    # =====================================================
+    # WORDS
+    # =====================================================
 
     await db.execute(
-        CREATE_WORDS_TABLE
+        """
+        CREATE TABLE IF NOT EXISTS words (
+
+            user_id INTEGER,
+
+            word TEXT,
+
+            count INTEGER DEFAULT 0,
+
+            PRIMARY KEY (
+                user_id,
+                word
+            )
+        )
+        """
     )
 
-    await db.execute(
-        CREATE_MESSAGE_TABLE
-    )
+    # =====================================================
+    # MESSAGE HISTORY
+    # =====================================================
 
     await db.execute(
-        CREATE_GAMES_TABLE
+        """
+        CREATE TABLE IF NOT EXISTS message_history (
+
+            message_id INTEGER PRIMARY KEY,
+
+            user_id INTEGER,
+
+            username TEXT,
+
+            content TEXT,
+
+            timestamp TEXT,
+
+            channel_id INTEGER,
+
+            guild_id INTEGER
+        )
+        """
     )
 
+    # =====================================================
+    # GAMES
+    # =====================================================
+
     await db.execute(
-        CREATE_SCANNED_MESSAGES_TABLE
+        """
+        CREATE TABLE IF NOT EXISTS games (
+
+            user_id INTEGER,
+
+            game_name TEXT,
+
+            first_seen TEXT,
+
+            last_seen TEXT,
+
+            times_seen INTEGER DEFAULT 1,
+
+            PRIMARY KEY (
+                user_id,
+                game_name
+            )
+        )
+        """
     )
+
+    # =====================================================
+    # SCANNED MESSAGES
+    # =====================================================
+
+    await db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS scanned_messages (
+
+            message_id INTEGER PRIMARY KEY
+        )
+        """
+    )
+
+    # =====================================================
+    # MIGRATIONS
+    # =====================================================
+
+    try:
+
+        await db.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN manual_notes TEXT DEFAULT ''
+            """
+        )
+
+    except:
+        pass
 
     await db.commit()
 
@@ -279,48 +252,49 @@ async def init_db():
     )
 
 # =========================================================
-# OWNER CHECK
-# =========================================================
-
-async def owner_dm_only(ctx):
-
-    return (
-        isinstance(
-            ctx.channel,
-            discord.DMChannel
-        )
-        and ctx.author.id == OWNER_ID
-    )
-
-# =========================================================
-# USER ENSURE
+# ENSURE USER
 # =========================================================
 
 async def ensure_user(user):
 
-    if db is None:
-        return
-
     async with db_lock:
 
-        await db.execute(
+        cursor = await db.execute(
             """
-            INSERT OR IGNORE INTO users(
-                user_id,
-                username
-            )
-            VALUES (?, ?)
+            SELECT user_id
+            FROM users
+            WHERE user_id=?
             """,
             (
                 user.id,
-                str(user)
             )
         )
 
-        await db.commit()
+        exists = await cursor.fetchone()
+
+        if not exists:
+
+            await db.execute(
+                """
+                INSERT INTO users (
+
+                    user_id,
+                    username
+
+                )
+
+                VALUES (?, ?)
+                """,
+                (
+                    user.id,
+                    str(user)
+                )
+            )
+
+            await db.commit()
 
 # =========================================================
-# GAME LOGGER
+# LOG GAME
 # =========================================================
 
 async def log_game(
@@ -328,44 +302,91 @@ async def log_game(
     game_name
 ):
 
-    if db is None:
-        return
-
     if not game_name:
         return
 
-    now = datetime.utcnow().isoformat()
+    now = str(
+        datetime.utcnow()
+    )
 
     async with db_lock:
 
-        await db.execute(
+        cursor = await db.execute(
             """
-            INSERT INTO games(
-                user_id,
-                game_name,
-                first_seen,
-                last_seen,
-                times_seen
-            )
-            VALUES (?, ?, ?, ?, 1)
-
-            ON CONFLICT(user_id, game_name)
-            DO UPDATE SET
-                last_seen=excluded.last_seen,
-                times_seen=times_seen+1
+            SELECT times_seen
+            FROM games
+            WHERE user_id=?
+            AND game_name=?
             """,
             (
                 user_id,
-                game_name,
-                now,
-                now
+                game_name
             )
         )
+
+        existing = await cursor.fetchone()
+
+        if existing:
+
+            await db.execute(
+                """
+                UPDATE games
+                SET
+
+                    times_seen=times_seen+1,
+
+                    last_seen=?
+
+                WHERE user_id=?
+                AND game_name=?
+                """,
+                (
+                    now,
+                    user_id,
+                    game_name
+                )
+            )
+
+        else:
+
+            await db.execute(
+                """
+                INSERT INTO games (
+
+                    user_id,
+                    game_name,
+                    first_seen,
+                    last_seen,
+                    times_seen
+
+                )
+
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    game_name,
+                    now,
+                    now,
+                    1
+                )
+            )
 
         await db.commit()
 
 # =========================================================
-# MESSAGE PROCESSOR
+# WORD PARSER
+# =========================================================
+
+def extract_words(text):
+
+    return re.findall(
+        r"\b[a-zA-Z']+\b",
+        text.lower()
+    )
+
+# =========================================================
+# PROCESS MESSAGE
 # =========================================================
 
 async def process_message_data(message):
@@ -373,15 +394,57 @@ async def process_message_data(message):
     if message.author.bot:
         return
 
-    if db is None:
-        return
+    await ensure_user(
+        message.author
+    )
 
-    text = message.content
+    content = (
+        message.content or ""
+    )
 
-    if not text:
-        return
+    words = extract_words(
+        content
+    )
+
+    word_count = len(words)
+
+    emojis = len(
+        re.findall(
+            r":[a-zA-Z0-9_]+:",
+            content
+        )
+    )
+
+    questions = content.count("?")
+
+    replies = 1 if message.reference else 0
+
+    sentiment = (
+        TextBlob(content)
+        .sentiment
+        .polarity
+    )
+
+    hour = datetime.utcnow().hour
+
+    morning = 0
+    afternoon = 0
+    night = 0
+
+    if 5 <= hour < 12:
+        morning = 1
+
+    elif 12 <= hour < 18:
+        afternoon = 1
+
+    else:
+        night = 1
 
     async with db_lock:
+
+        # =================================================
+        # DUPLICATE CHECK
+        # =================================================
 
         cursor = await db.execute(
             """
@@ -396,136 +459,21 @@ async def process_message_data(message):
 
         exists = await cursor.fetchone()
 
-    if exists:
-        return
-
-    await ensure_user(
-        message.author
-    )
-
-    words = clean_words(text)
-
-    sentiment = calculate_sentiment(
-        text
-    )
-
-    emoji_count = len(
-        EMOJI_PATTERN.findall(text)
-    )
-
-    questions = text.count("?")
-
-    is_reply = (
-        message.reference is not None
-    )
-
-    bucket = get_time_bucket(
-        message.created_at.hour
-    )
-
-    word_counts = Counter([
-        w for w in words
-        if len(w) > 3
-    ])
-
-    async with db_lock:
-
-        cursor = await db.execute(
-            """
-            SELECT total_messages,
-                   avg_sentiment
-            FROM users
-            WHERE user_id=?
-            """,
-            (
-                message.author.id,
-            )
-        )
-
-        current = await cursor.fetchone()
-
-        if not current:
+        if exists:
             return
 
-        total_msgs = current[0]
-        old_sentiment = current[1]
-
-        new_avg = (
-            (
-                old_sentiment
-                * total_msgs
-            )
-            + sentiment
-        ) / (total_msgs + 1)
-
-        await db.execute(
-            f"""
-            UPDATE users
-            SET
-                username=?,
-                total_messages=total_messages+1,
-                total_words=total_words+?,
-                avg_sentiment=?,
-                emojis_used=emojis_used+?,
-                questions_asked=questions_asked+?,
-                replies_sent=replies_sent+?,
-                {bucket}={bucket}+1
-            WHERE user_id=?
-            """,
-            (
-                str(message.author),
-                len(words),
-                new_avg,
-                emoji_count,
-                questions,
-                int(is_reply),
-                message.author.id
-            )
-        )
+        # =================================================
+        # MARK SCANNED
+        # =================================================
 
         await db.execute(
             """
-            INSERT OR IGNORE INTO message_history(
-                message_id,
-                user_id,
-                content
-            )
-            VALUES (?, ?, ?)
-            """,
-            (
-                message.id,
-                message.author.id,
-                text[:1000]
-            )
-        )
+            INSERT OR IGNORE INTO scanned_messages (
 
-        for word, count in word_counts.items():
-
-            await db.execute(
-                """
-                INSERT INTO words(
-                    user_id,
-                    word,
-                    count
-                )
-                VALUES (?, ?, ?)
-
-                ON CONFLICT(user_id, word)
-                DO UPDATE SET
-                count=count+excluded.count
-                """,
-                (
-                    message.author.id,
-                    word,
-                    count
-                )
-            )
-
-        await db.execute(
-            """
-            INSERT OR IGNORE INTO scanned_messages(
                 message_id
+
             )
+
             VALUES (?)
             """,
             (
@@ -533,4 +481,187 @@ async def process_message_data(message):
             )
         )
 
+        # =================================================
+        # SAVE HISTORY
+        # =================================================
+
+        await db.execute(
+            """
+            INSERT OR IGNORE INTO message_history (
+
+                message_id,
+                user_id,
+                username,
+                content,
+                timestamp,
+                channel_id,
+                guild_id
+
+            )
+
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                message.id,
+                message.author.id,
+                str(message.author),
+                content,
+                str(message.created_at),
+                message.channel.id,
+                message.guild.id
+                if message.guild
+                else 0
+            )
+        )
+
+        # =================================================
+        # UPDATE USER STATS
+        # =================================================
+
+        await db.execute(
+            """
+            UPDATE users
+            SET
+
+                username=?,
+
+                total_messages=total_messages+1,
+
+                total_words=total_words+?,
+
+                avg_sentiment=
+                    (
+                        avg_sentiment
+                        +
+                        ?
+                    ) / 2,
+
+                morning_msgs=morning_msgs+?,
+
+                afternoon_msgs=afternoon_msgs+?,
+
+                night_msgs=night_msgs+?,
+
+                emojis_used=emojis_used+?,
+
+                questions_asked=questions_asked+?,
+
+                replies_sent=replies_sent+?
+
+            WHERE user_id=?
+            """,
+            (
+                str(message.author),
+
+                word_count,
+
+                sentiment,
+
+                morning,
+
+                afternoon,
+
+                night,
+
+                emojis,
+
+                questions,
+
+                replies,
+
+                message.author.id
+            )
+        )
+
+        # =================================================
+        # WORD TRACKING
+        # =================================================
+
+        for word in words:
+
+            await db.execute(
+                """
+                INSERT INTO words (
+
+                    user_id,
+                    word,
+                    count
+
+                )
+
+                VALUES (?, ?, 1)
+
+                ON CONFLICT(user_id, word)
+
+                DO UPDATE SET
+
+                    count=count+1
+                """,
+                (
+                    message.author.id,
+                    word
+                )
+            )
+
         await db.commit()
+
+# =========================================================
+# BASIC COMMANDS
+# =========================================================
+
+@bot.command()
+@commands.check(owner_dm_only)
+async def ping(ctx):
+
+    await ctx.send(
+        "Pong!"
+    )
+
+# =========================================================
+# HELP COMMAND
+# =========================================================
+
+@bot.command()
+@commands.check(owner_dm_only)
+async def help(ctx):
+
+    commands_text = """
+COMMANDS
+
+!persona @user
+Generate AI personality analysis
+
+!ask @user question
+Ask AI about a user
+
+!askall question
+Analyze whole server
+
+!note @user text
+Add manual note
+
+!notes @user
+View notes
+
+!clearnotes @user
+Clear notes
+
+!games @user
+Show tracked games
+
+!topwords @user
+Show top 5 words
+
+!stats @user
+Show raw stats
+
+!scanhistory
+Scan all channel history
+
+!ping
+Ping test
+"""
+
+    await ctx.send(
+        f"```{commands_text}```"
+    )
