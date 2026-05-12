@@ -572,7 +572,22 @@ async def process_message_data(message):
                 message.author.id
             )
         )
+        
+        
+@bot.command()
+@commands.check(owner_dm_only)
+async def reset(ctx):
 
+    await ctx.send(
+        "Restarting bot..."
+    )
+
+    print(
+        "\nRestart command received.\n"
+    )
+
+    os._exit(0)
+    
         # =================================================
         # WORD TRACKING
         # =================================================
