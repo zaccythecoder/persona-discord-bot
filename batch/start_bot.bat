@@ -1,8 +1,13 @@
 @echo off
+
 title Persona Bot
 
-cd /d "C:\Users\zacks\Persona Bot"
+echo ============================================
+echo          STARTING PERSONA BOT
+echo ============================================
 
-python bot/main.py
+cd /d "%~dp0.."
+
+python -m bot.main
 
 pause

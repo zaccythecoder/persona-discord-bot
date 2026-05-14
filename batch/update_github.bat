@@ -1,23 +1,36 @@
 @echo off
-title GitHub Auto Update
 
-cd /d "C:\Users\zacks\Persona Bot"
+title Update GitHub Repository
 
-echo ============================
-echo Updating GitHub Repository
-echo ============================
+echo ============================================
+echo      Updating GitHub Repository
+echo ============================================
 echo.
 
-git add .
+cd /d "%~dp0.."
 
+echo Current folder:
+cd
+
+echo.
 set /p msg=Commit message: 
 
-git commit -m "%msg%"
-
-git push
+echo.
+echo Adding files...
+git add .
 
 echo.
-echo ============================
-echo Upload Complete
-echo ============================
+echo Creating commit...
+git commit -m "%msg%"
+
+echo.
+echo Pushing to GitHub...
+git push origin main
+
+echo.
+echo ============================================
+echo              UPDATE COMPLETE
+echo ============================================
+echo.
+
 pause

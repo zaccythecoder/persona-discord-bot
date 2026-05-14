@@ -2,7 +2,9 @@
 # bot/main.py
 # ============================================
 
+import asyncio
 import discord
+
 from discord.ext import commands
 
 from bot.config import (
@@ -22,7 +24,7 @@ from bot.utility_commands import (
     setup as setup_utility
 )
 
-from bot.voice_logging import (
+from bot.voice.voice_logging import (
     setup_voice
 )
 
@@ -40,7 +42,7 @@ intents.messages = True
 intents.voice_states = True
 
 # ============================================
-# BOT
+# BOT SETUP
 # ============================================
 
 bot = commands.Bot(
@@ -64,10 +66,42 @@ bot.remove_command(
 @bot.event
 async def on_ready():
 
-    print("\n================================")
+    print("\n====================================")
     print("BOT ONLINE")
     print(f"Logged in as: {bot.user}")
-    print("================================\n")
+    print("====================================\n")
+
+    print(
+        f"Connected to "
+        f"{len(bot.guilds)} guild(s)"
+    )
+
+# ============================================
+# ERROR HANDLER
+# ============================================
+
+@bot.event
+async def on_command_error(
+    ctx,
+    error
+):
+
+    if isinstance(
+        error,
+        commands.CommandNotFound
+    ):
+
+        return
+
+    print(
+        f"\nCOMMAND ERROR:\n{error}\n"
+    )
+
+    await ctx.send(
+
+        f"Error:\n```{error}```"
+
+    )
 
 # ============================================
 # STARTUP
@@ -76,13 +110,13 @@ async def on_ready():
 async def startup():
 
     print(
-        "\nInitializing database...\n"
+        "\nInitializing database..."
     )
 
     await init_db()
 
     print(
-        "Database initialized.\n"
+        "Database initialized."
     )
 
 # ============================================
@@ -93,34 +127,42 @@ async def main():
 
     await startup()
 
-    # ================================
-    # LOAD COMMAND MODULES
-    # ================================
+    # ========================================
+    # LOAD AI COMMANDS
+    # ========================================
 
     setup_ai(bot)
 
     print(
-        "ai_commands.py loaded"
+        "Loaded ai_commands.py"
     )
+
+    # ========================================
+    # LOAD UTILITY COMMANDS
+    # ========================================
 
     setup_utility(bot)
 
     print(
-        "utility_commands.py loaded"
+        "Loaded utility_commands.py"
     )
+
+    # ========================================
+    # LOAD VOICE SYSTEM
+    # ========================================
 
     setup_voice(bot)
 
     print(
-        "voice_logging.py loaded"
+        "Loaded voice system"
     )
 
-    # ================================
+    # ========================================
     # START BOT
-    # ================================
+    # ========================================
 
     print(
-        "Starting Discord bot..."
+        "\nStarting Discord bot...\n"
     )
 
     await bot.start(
@@ -132,8 +174,6 @@ async def main():
 # ============================================
 
 if __name__ == "__main__":
-
-    import asyncio
 
     asyncio.run(
         main()
