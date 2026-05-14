@@ -9,6 +9,8 @@ import asyncio
 
 from discord.ext import commands
 
+import discord.ext.voice_recv as voice_recv
+
 from faster_whisper import WhisperModel
 
 # ============================================
@@ -22,12 +24,47 @@ model = WhisperModel(
 )
 
 # ============================================
-# RECORDING STORAGE
+# PATHS
 # ============================================
 
-recording_active = False
+RECORDING_FILE = (
+    "data/recordings/live.wav"
+)
 
-audio_chunks = []
+TRANSCRIPT_FILE = (
+    "data/transcripts/latest.txt"
+)
+
+# ============================================
+# AUDIO SINK
+# ============================================
+
+class VoiceSink(
+    voice_recv.AudioSink
+):
+
+    def __init__(self):
+
+        super().__init__()
+
+        self.wav = wave.open(
+            RECORDING_FILE,
+            "wb"
+        )
+
+        self.wav.setnchannels(2)
+        self.wav.setsampwidth(2)
+        self.wav.setframerate(48000)
+
+    def write(self, user, data):
+
+        self.wav.writeframes(
+            data.pcm
+        )
+
+    def cleanup(self):
+
+        self.wav.close()
 
 # ============================================
 # SETUP
@@ -52,15 +89,9 @@ def setup_voice(bot):
 
         channel = ctx.author.voice.channel
 
-        if ctx.voice_client:
-
-            await ctx.voice_client.move_to(
-                channel
-            )
-
-        else:
-
-            await channel.connect()
+        vc = await channel.connect(
+            cls=voice_recv.VoiceRecvClient
+        )
 
         await ctx.send(
             f"Joined {channel.name}"
@@ -88,9 +119,9 @@ def setup_voice(bot):
     @bot.command()
     async def record(ctx):
 
-        global recording_active
+        vc = ctx.voice_client
 
-        if not ctx.voice_client:
+        if not vc:
 
             await ctx.send(
                 "Bot is not in VC."
@@ -98,10 +129,16 @@ def setup_voice(bot):
 
             return
 
-        recording_active = True
+        sink = VoiceSink()
+
+        vc.listen(
+            sink
+        )
+
+        bot.current_sink = sink
 
         await ctx.send(
-            "Recording started."
+            "Live recording started."
         )
 
     # ========================================
@@ -111,27 +148,35 @@ def setup_voice(bot):
     @bot.command()
     async def stoprecord(ctx):
 
-        global recording_active
+        vc = ctx.voice_client
 
-        recording_active = False
+        if not vc:
+
+            return
+
+        vc.stop_listening()
+
+        if hasattr(
+            bot,
+            "current_sink"
+        ):
+
+            bot.current_sink.cleanup()
 
         await ctx.send(
             "Recording stopped."
         )
-
-        # fake placeholder audio path
-        audio_path = "data/recordings/test.wav"
 
         # ====================================
         # TRANSCRIBE
         # ====================================
 
         await ctx.send(
-            "Transcribing..."
+            "Transcribing audio..."
         )
 
         segments, info = model.transcribe(
-            audio_path
+            RECORDING_FILE
         )
 
         transcript = ""
@@ -147,7 +192,7 @@ def setup_voice(bot):
         # ====================================
 
         with open(
-            "data/transcripts/latest.txt",
+            TRANSCRIPT_FILE,
             "w",
             encoding="utf-8"
         ) as f:
@@ -157,7 +202,7 @@ def setup_voice(bot):
             )
 
         await ctx.send(
-            "Transcript saved."
+            "Transcript complete."
         )
 
     # ========================================
@@ -167,12 +212,8 @@ def setup_voice(bot):
     @bot.command()
     async def vcsummary(ctx):
 
-        transcript_path = (
-            "data/transcripts/latest.txt"
-        )
-
         if not os.path.exists(
-            transcript_path
+            TRANSCRIPT_FILE
         ):
 
             await ctx.send(
@@ -182,14 +223,13 @@ def setup_voice(bot):
             return
 
         with open(
-            transcript_path,
+            TRANSCRIPT_FILE,
             "r",
             encoding="utf-8"
         ) as f:
 
             transcript = f.read()
 
-        # shorten for Discord limit
         transcript = transcript[:1800]
 
         await ctx.send(
