@@ -1,11 +1,15 @@
 [phases.setup]
 nixPkgs = [
   "python311",
-  "python311Packages.pip"
+  "python311Packages.pip",
+  "libsodium",
+  "gcc"
 ]
 
 [phases.install]
 cmds = [
+  "python3 -m ensurepip --upgrade",
+  "python3 -m pip install --upgrade pip",
   "python3 -m pip install -r misc/requirements.txt"
 ]
 

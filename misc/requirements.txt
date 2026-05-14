@@ -1,6 +1,6 @@
-discord.py
+discord.py==2.4.0
 aiosqlite
 textblob
 groq
-PyNaCl
 python-dotenv
+PyNaCl==1.5.0
