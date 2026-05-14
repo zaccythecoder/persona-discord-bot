@@ -6,8 +6,9 @@ textblob
 groq
 python-dotenv
 
-discord-ext-voice-recv
+discord-ext-voice-recv==0.4.2a145
+
 faster-whisper
+
 ffmpeg-python
-wave
 numpy
