@@ -3,24 +3,18 @@
 # ============================================
 
 import os
+import sys
 import discord
+import platform
+import psutil
+
+from datetime import datetime
+
 from discord.ext import commands
 
 from bot.config import (
-    OWNER_ID
-)
-
-from bot.database import (
-    get_user_stats,
-    get_top_words,
-    get_games,
-    add_note,
-    get_notes,
-    clear_notes
-)
-
-from bot.tracking import (
-    scan_history
+    OWNER_ID,
+    PREFIX
 )
 
 # ============================================
@@ -33,7 +27,9 @@ def owner_only():
 
         return ctx.author.id == OWNER_ID
 
-    return commands.check(predicate)
+    return commands.check(
+        predicate
+    )
 
 # ============================================
 # SETUP
@@ -53,7 +49,9 @@ def setup(bot):
         )
 
         await ctx.send(
-            f"Pong! {latency}ms"
+
+            f"Pong! `{latency}ms`"
+
         )
 
     # ========================================
@@ -61,42 +59,91 @@ def setup(bot):
     # ========================================
 
     @bot.command()
-    @owner_only()
     async def help(ctx):
 
-        commands_text = """
+        commands_text = f"""
+{PREFIX}ping
+{PREFIX}help
+{PREFIX}info
+{PREFIX}stats
 
-=== PERSONA BOT COMMANDS ===
+{PREFIX}reset
+{PREFIX}shutdown
 
-GENERAL:
-!ping
-!help
-
-AI:
-!persona @user
-!ask @user <question>
-!askall <question>
-
-STATS:
-!stats @user
-!topwords @user
-!games @user
-
-NOTES:
-!note @user <note>
-!notes @user
-!clearnotes @user
-
-TRACKING:
-!scanhistory
-
-UTILITY:
-!reset
-
+VOICE:
+{PREFIX}joinvc
+{PREFIX}leavevc
+{PREFIX}record
+{PREFIX}stoprecord
+{PREFIX}vcsummary
+{PREFIX}vcprofile
+{PREFIX}fakevc
 """
 
+        embed = discord.Embed(
+
+            title="Persona Bot Commands",
+
+            description=f"```{commands_text}```",
+
+            color=discord.Color.blue()
+
+        )
+
         await ctx.send(
-            f"```{commands_text}```"
+            embed=embed
+        )
+
+    # ========================================
+    # INFO
+    # ========================================
+
+    @bot.command()
+    async def info(ctx):
+
+        embed = discord.Embed(
+
+            title="Persona Bot",
+
+            description=
+                "AI-powered Discord personality bot.",
+
+            color=discord.Color.green()
+
+        )
+
+        embed.add_field(
+
+            name="Python",
+
+            value=platform.python_version(),
+
+            inline=True
+
+        )
+
+        embed.add_field(
+
+            name="Discord.py",
+
+            value=discord.__version__,
+
+            inline=True
+
+        )
+
+        embed.add_field(
+
+            name="Servers",
+
+            value=len(bot.guilds),
+
+            inline=True
+
+        )
+
+        await ctx.send(
+            embed=embed
         )
 
     # ========================================
@@ -104,217 +151,92 @@ UTILITY:
     # ========================================
 
     @bot.command()
-    @owner_only()
-    async def stats(
-        ctx,
-        member: discord.Member
-    ):
+    async def stats(ctx):
 
-        stats = await get_user_stats(
-            member.id
+        cpu = psutil.cpu_percent()
+
+        ram = psutil.virtual_memory().percent
+
+        uptime = datetime.now()
+
+        embed = discord.Embed(
+
+            title="System Stats",
+
+            color=discord.Color.orange()
+
         )
 
-        if not stats:
+        embed.add_field(
 
-            await ctx.send(
-                "No stats found."
-            )
+            name="CPU Usage",
 
-            return
+            value=f"{cpu}%",
 
-        text = f"""
+            inline=True
 
-Username: {stats[1]}
-
-Messages: {stats[2]}
-
-Words: {stats[3]}
-
-Sentiment: {round(stats[4], 2)}
-
-Morning msgs: {stats[5]}
-Afternoon msgs: {stats[6]}
-Night msgs: {stats[7]}
-
-Emojis: {stats[8]}
-Questions: {stats[9]}
-Replies: {stats[10]}
-
-"""
-
-        await ctx.send(
-            f"```{text}```"
         )
 
-    # ========================================
-    # TOP WORDS
-    # ========================================
+        embed.add_field(
 
-    @bot.command()
-    @owner_only()
-    async def topwords(
-        ctx,
-        member: discord.Member
-    ):
+            name="RAM Usage",
 
-        words = await get_top_words(
-            member.id,
-            10
+            value=f"{ram}%",
+
+            inline=True
+
         )
 
-        if not words:
+        embed.add_field(
 
-            await ctx.send(
-                "No word data found."
-            )
+            name="Guilds",
 
-            return
+            value=len(bot.guilds),
 
-        text = "\n".join(
-
-            [
-                f"{word} — {count}"
-
-                for word, count in words
-            ]
+            inline=True
 
         )
 
         await ctx.send(
-            f"```Top Words for {member}:\n\n{text}```"
-        )
-
-    # ========================================
-    # GAMES
-    # ========================================
-
-    @bot.command()
-    @owner_only()
-    async def games(
-        ctx,
-        member: discord.Member
-    ):
-
-        games_list = await get_games(
-            member.id
-        )
-
-        if not games_list:
-
-            await ctx.send(
-                "No games tracked."
-            )
-
-            return
-
-        text = "\n".join(
-
-            [
-                f"{game} — {count}"
-
-                for game, count in games_list
-            ]
-
-        )
-
-        await ctx.send(
-            f"```Games for {member}:\n\n{text}```"
-        )
-
-    # ========================================
-    # ADD NOTE
-    # ========================================
-
-    @bot.command()
-    @owner_only()
-    async def note(
-        ctx,
-        member: discord.Member,
-        *,
-        note_text
-    ):
-
-        await add_note(
-            member.id,
-            note_text
-        )
-
-        await ctx.send(
-            "Note added."
-        )
-
-    # ========================================
-    # GET NOTES
-    # ========================================
-
-    @bot.command()
-    @owner_only()
-    async def notes(
-        ctx,
-        member: discord.Member
-    ):
-
-        notes_text = await get_notes(
-            member.id
-        )
-
-        if not notes_text:
-
-            notes_text = (
-                "No notes."
-            )
-
-        await ctx.send(
-            f"```{notes_text}```"
-        )
-
-    # ========================================
-    # CLEAR NOTES
-    # ========================================
-
-    @bot.command()
-    @owner_only()
-    async def clearnotes(
-        ctx,
-        member: discord.Member
-    ):
-
-        await clear_notes(
-            member.id
-        )
-
-        await ctx.send(
-            "Notes cleared."
-        )
-
-    # ========================================
-    # SCAN HISTORY
-    # ========================================
-
-    @bot.command()
-    @owner_only()
-    async def scanhistory(ctx):
-
-        await scan_history(
-            ctx
+            embed=embed
         )
 
     # ========================================
     # RESET
     # ========================================
 
-   @bot.command()
-   @owner_only()
-   async def reset(ctx):
+    @bot.command()
+    @owner_only()
+    async def reset(ctx):
 
-    await ctx.send(
-        "Restarting bot..."
-    )
+        await ctx.send(
+            "Restarting bot..."
+        )
 
-    print(
-        "\nRestart command received.\n"
-    )
+        print(
+            "\nRestart requested.\n"
+        )
 
-    await bot.close()
+        await bot.close()
 
-    os._exit(0)
+        os._exit(0)
+
+    # ========================================
+    # SHUTDOWN
+    # ========================================
+
+    @bot.command()
+    @owner_only()
+    async def shutdown(ctx):
+
+        await ctx.send(
+            "Shutting down bot..."
+        )
+
+        print(
+            "\nShutdown requested.\n"
+        )
+
+        await bot.close()
+
+        sys.exit(0)
