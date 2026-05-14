@@ -8,8 +8,6 @@ import discord
 import platform
 import psutil
 
-from datetime import datetime
-
 from discord.ext import commands
 
 from bot.config import (
@@ -19,9 +17,10 @@ from bot.config import (
 
 from bot.tracking import (
     tracked_users,
-    user_notes,
     user_messages,
-    user_games
+    user_notes,
+    user_games,
+    add_note
 )
 
 # ============================================
@@ -170,6 +169,85 @@ UTILITY
 
         await ctx.send(
             embed=embed
+        )
+
+    # ========================================
+    # PERSONA NOTE
+    # ========================================
+
+    @bot.command()
+    async def note(
+        ctx,
+        member: discord.Member,
+        *,
+        note_text
+    ):
+
+        add_note(
+            member.id,
+            note_text
+        )
+
+        await ctx.send(
+
+            f"Added note for "
+            f"{member.name}"
+
+        )
+
+    # ========================================
+    # VIEW NOTES
+    # ========================================
+
+    @bot.command()
+    async def notes(
+        ctx,
+        member: discord.Member
+    ):
+
+        notes_list = user_notes.get(
+            member.id,
+            []
+        )
+
+        if not notes_list:
+
+            await ctx.send(
+                "No notes found."
+            )
+
+            return
+
+        output = "\n".join(
+            notes_list[-20:]
+        )
+
+        await ctx.send(
+
+            f"Notes for {member.name}:\n"
+            f"```{output}```"
+
+        )
+
+    # ========================================
+    # CLEAR NOTES
+    # ========================================
+
+    @bot.command()
+    async def clearnotes(
+        ctx,
+        member: discord.Member
+    ):
+
+        user_notes[
+            member.id
+        ] = []
+
+        await ctx.send(
+
+            f"Cleared notes for "
+            f"{member.name}"
+
         )
 
     # ========================================
@@ -359,7 +437,7 @@ UTILITY
 
         )
 
-        notes = len(
+        notes_count = len(
 
             user_notes.get(
                 member.id,
@@ -400,7 +478,7 @@ UTILITY
 
             name="Notes",
 
-            value=notes,
+            value=notes_count,
 
             inline=True
 
@@ -411,126 +489,73 @@ UTILITY
         )
 
     # ========================================
-    # NOTES
-    # ========================================
-
-    @bot.command()
-    async def notes(
-        ctx,
-        member: discord.Member
-    ):
-
-        notes_list = user_notes.get(
-            member.id,
-            []
-        )
-
-        if not notes_list:
-
-            await ctx.send(
-                "No notes found."
-            )
-
-            return
-
-        output = "\n".join(
-            notes_list[-20:]
-        )
-
-        await ctx.send(
-
-            f"Notes for {member.name}:\n"
-            f"```{output}```"
-
-        )
-
-    # ========================================
-    # CLEAR NOTES
-    # ========================================
-
-    @bot.command()
-    async def clearnotes(
-        ctx,
-        member: discord.Member
-    ):
-
-        user_notes[member.id] = []
-
-        await ctx.send(
-
-            f"Cleared notes for "
-            f"{member.name}"
-
-        )
-
-    # ========================================
     # SCAN HISTORY
     # ========================================
 
     @bot.command()
-@owner_only()
-async def scanhistory(ctx):
-
-    await ctx.send(
-        "Scanning ALL server history..."
-    )
-
-    scanned = 0
-
-    skipped = 0
-
-    # ========================================
-    # LOOP THROUGH ALL GUILDS
-    # ========================================
-
-    for guild in bot.guilds:
+    @owner_only()
+    async def scanhistory(ctx):
 
         await ctx.send(
-            f"Scanning: {guild.name}"
+            "Scanning ALL server history..."
         )
 
-        for channel in guild.text_channels:
+        scanned = 0
 
-            try:
+        skipped = 0
 
-                async for msg in channel.history(
-                    limit=500
-                ):
+        # ====================================
+        # LOOP THROUGH ALL GUILDS
+        # ====================================
 
-                    if msg.author.bot:
-                        continue
+        for guild in bot.guilds:
 
-                    tracked_users.add(
-                        msg.author.id
+            await ctx.send(
+                f"Scanning: {guild.name}"
+            )
+
+            for channel in guild.text_channels:
+
+                try:
+
+                    async for msg in channel.history(
+                        limit=500
+                    ):
+
+                        if msg.author.bot:
+                            continue
+
+                        tracked_users.add(
+                            msg.author.id
+                        )
+
+                        user_messages.setdefault(
+                            msg.author.id,
+                            []
+                        ).append(
+                            msg.content
+                        )
+
+                        scanned += 1
+
+                except Exception as e:
+
+                    print(
+
+                        f"Failed scanning "
+                        f"{channel.name}: {e}"
+
                     )
 
-                    user_messages.setdefault(
-                        msg.author.id,
-                        []
-                    ).append(
-                        msg.content
-                    )
+        await ctx.send(
 
-                    scanned += 1
+            f"Finished scanning.\n\n"
 
-            except Exception as e:
+            f"Messages scanned: {scanned}\n"
 
-                print(
+            f"Skipped: {skipped}"
 
-                    f"Failed scanning "
-                    f"{channel.name}: {e}"
-
-                )
-
-    await ctx.send(
-
-        f"Finished scanning.\n\n"
-
-        f"Messages scanned: {scanned}\n"
-
-        f"Skipped: {skipped}"
-
-    )
+        )
 
     # ========================================
     # RESET
