@@ -468,16 +468,28 @@ UTILITY
     # ========================================
 
     @bot.command()
-    @owner_only()
-    async def scanhistory(ctx):
+@owner_only()
+async def scanhistory(ctx):
+
+    await ctx.send(
+        "Scanning ALL server history..."
+    )
+
+    scanned = 0
+
+    skipped = 0
+
+    # ========================================
+    # LOOP THROUGH ALL GUILDS
+    # ========================================
+
+    for guild in bot.guilds:
 
         await ctx.send(
-            "Scanning channel history..."
+            f"Scanning: {guild.name}"
         )
 
-        scanned = 0
-
-        for channel in ctx.guild.text_channels:
+        for channel in guild.text_channels:
 
             try:
 
@@ -486,7 +498,6 @@ UTILITY
                 ):
 
                     if msg.author.bot:
-
                         continue
 
                     tracked_users.add(
@@ -496,20 +507,30 @@ UTILITY
                     user_messages.setdefault(
                         msg.author.id,
                         []
-                    ).append(msg.content)
+                    ).append(
+                        msg.content
+                    )
 
                     scanned += 1
 
-            except:
+            except Exception as e:
 
-                pass
+                print(
 
-        await ctx.send(
+                    f"Failed scanning "
+                    f"{channel.name}: {e}"
 
-            f"Finished scanning.\n"
-            f"Messages scanned: {scanned}"
+                )
 
-        )
+    await ctx.send(
+
+        f"Finished scanning.\n\n"
+
+        f"Messages scanned: {scanned}\n"
+
+        f"Skipped: {skipped}"
+
+    )
 
     # ========================================
     # RESET
