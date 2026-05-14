@@ -2,11 +2,28 @@
 # bot/database.py
 # ============================================
 
+import os
 import aiosqlite
 import asyncio
+
 from datetime import datetime
 
 from bot.config import DATABASE
+
+# ============================================
+# DATABASE PATH FIX
+# ============================================
+
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
+)
+
+DATABASE_PATH = os.path.join(
+    BASE_DIR,
+    DATABASE
+)
 
 # ============================================
 # DATABASE GLOBALS
@@ -27,8 +44,12 @@ async def init_db():
     if db:
         return
 
+    print(
+        f"\nUsing database:\n{DATABASE_PATH}\n"
+    )
+
     db = await aiosqlite.connect(
-        DATABASE
+        DATABASE_PATH
     )
 
     await db.execute(
@@ -177,6 +198,24 @@ async def init_db():
         pass
 
     await db.commit()
+
+    # ========================================
+    # FORCE FILE CREATION
+    # ========================================
+
+    if os.path.exists(
+        DATABASE_PATH
+    ):
+
+        print(
+            "Database file created successfully."
+        )
+
+    else:
+
+        print(
+            "WARNING: Database file missing."
+        )
 
     print(
         "Database initialized successfully."
