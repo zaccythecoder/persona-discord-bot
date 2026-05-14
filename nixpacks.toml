@@ -1,14 +1,13 @@
 [phases.setup]
 nixPkgs = [
-  "python311",
-  "python311Packages.pip",
+  "python3Full",
   "libsodium",
   "gcc"
 ]
 
 [phases.install]
 cmds = [
-  "python3 -m pip install --break-system-packages -r misc/requirements.txt"
+  "pip3 install --break-system-packages -r misc/requirements.txt"
 ]
 
 [start]
