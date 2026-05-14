@@ -3,3 +3,4 @@ aiosqlite
 textblob
 groq
 PyNaCl
+python-dotenv

@@ -3,7 +3,14 @@
 # ============================================
 
 import os
+from dotenv import load_dotenv
 from groq import Groq
+
+# ============================================
+# LOAD .ENV
+# ============================================
+
+load_dotenv()
 
 # ============================================
 # DISCORD SETTINGS
@@ -39,37 +46,31 @@ MODEL = os.getenv(
 )
 
 # ============================================
-# GROQ API KEY
+# GROQ
 # ============================================
 
-GROQ_KEY = (
-    os.getenv("GROQ_KEY")
-    or
-    os.getenv("GROQ_API_KEY")
+GROQ_KEY = os.getenv(
+    "GROQ_KEY"
 )
 
 if not GROQ_KEY:
 
     raise Exception(
-        "Missing GROQ_KEY / GROQ_API_KEY environment variable"
+        "Missing GROQ_KEY in .env"
     )
-
-# ============================================
-# GROQ CLIENT
-# ============================================
 
 groq_client = Groq(
     api_key=GROQ_KEY
 )
 
 # ============================================
-# STARTUP CHECKS
+# TOKEN CHECK
 # ============================================
 
 if not TOKEN:
 
     raise Exception(
-        "Missing TOKEN environment variable"
+        "Missing TOKEN in .env"
     )
 
 print(
