@@ -17,6 +17,13 @@ from bot.config import (
     PREFIX
 )
 
+from bot.tracking import (
+    tracked_users,
+    user_notes,
+    user_messages,
+    user_games
+)
+
 # ============================================
 # OWNER CHECK
 # ============================================
@@ -62,15 +69,27 @@ def setup(bot):
     async def help(ctx):
 
         commands_text = f"""
-{PREFIX}ping
-{PREFIX}help
-{PREFIX}info
-{PREFIX}stats
+AI COMMANDS
+------------
+{PREFIX}persona @user
+{PREFIX}ask @user question
+{PREFIX}askall question
 
-{PREFIX}reset
-{PREFIX}shutdown
+NOTES
+------------
+{PREFIX}note @user text
+{PREFIX}notes @user
+{PREFIX}clearnotes @user
 
-VOICE:
+TRACKING
+------------
+{PREFIX}games @user
+{PREFIX}topwords @user
+{PREFIX}stats @user
+{PREFIX}scanhistory
+
+VOICE
+------------
 {PREFIX}joinvc
 {PREFIX}leavevc
 {PREFIX}record
@@ -78,6 +97,13 @@ VOICE:
 {PREFIX}vcsummary
 {PREFIX}vcprofile
 {PREFIX}fakevc
+
+UTILITY
+------------
+{PREFIX}ping
+{PREFIX}info
+{PREFIX}reset
+{PREFIX}shutdown
 """
 
         embed = discord.Embed(
@@ -147,31 +173,214 @@ VOICE:
         )
 
     # ========================================
+    # GAMES
+    # ========================================
+
+    @bot.command()
+    async def games(
+        ctx,
+        member: discord.Member
+    ):
+
+        games_list = user_games.get(
+            member.id,
+            []
+        )
+
+        if not games_list:
+
+            await ctx.send(
+                "No tracked games."
+            )
+
+            return
+
+        text = "\n".join(
+            list(set(games_list))
+        )
+
+        await ctx.send(
+
+            f"Tracked games for "
+            f"{member.name}:\n```{text}```"
+
+        )
+
+    # ========================================
+    # TOP WORDS
+    # ========================================
+
+    @bot.command()
+    async def topwords(
+        ctx,
+        member: discord.Member
+    ):
+
+        messages = user_messages.get(
+            member.id,
+            []
+        )
+
+        if not messages:
+
+            await ctx.send(
+                "No messages tracked."
+            )
+
+            return
+
+        words = {}
+
+        for msg in messages:
+
+            for word in msg.lower().split():
+
+                if len(word) < 4:
+
+                    continue
+
+                words[word] = (
+                    words.get(word, 0)
+                    + 1
+                )
+
+        top = sorted(
+
+            words.items(),
+
+            key=lambda x: x[1],
+
+            reverse=True
+
+        )[:5]
+
+        output = "\n".join(
+
+            f"{w} ({c})"
+
+            for w, c in top
+
+        )
+
+        await ctx.send(
+
+            f"Top words for "
+            f"{member.name}:\n```{output}```"
+
+        )
+
+    # ========================================
     # STATS
     # ========================================
 
     @bot.command()
-    async def stats(ctx):
+    async def stats(
+        ctx,
+        member: discord.Member=None
+    ):
 
-        cpu = psutil.cpu_percent()
+        # ====================================
+        # BOT STATS
+        # ====================================
 
-        ram = psutil.virtual_memory().percent
+        if member is None:
 
-        uptime = datetime.now()
+            cpu = psutil.cpu_percent()
+
+            ram = psutil.virtual_memory().percent
+
+            embed = discord.Embed(
+
+                title="System Stats",
+
+                color=discord.Color.orange()
+
+            )
+
+            embed.add_field(
+
+                name="CPU Usage",
+
+                value=f"{cpu}%",
+
+                inline=True
+
+            )
+
+            embed.add_field(
+
+                name="RAM Usage",
+
+                value=f"{ram}%",
+
+                inline=True
+
+            )
+
+            embed.add_field(
+
+                name="Guilds",
+
+                value=len(bot.guilds),
+
+                inline=True
+
+            )
+
+            await ctx.send(
+                embed=embed
+            )
+
+            return
+
+        # ====================================
+        # USER STATS
+        # ====================================
+
+        messages = len(
+
+            user_messages.get(
+                member.id,
+                []
+            )
+
+        )
+
+        games = len(
+
+            set(
+
+                user_games.get(
+                    member.id,
+                    []
+                )
+
+            )
+
+        )
+
+        notes = len(
+
+            user_notes.get(
+                member.id,
+                []
+            )
+
+        )
 
         embed = discord.Embed(
 
-            title="System Stats",
+            title=f"{member.name} Stats",
 
-            color=discord.Color.orange()
+            color=discord.Color.blurple()
 
         )
 
         embed.add_field(
 
-            name="CPU Usage",
+            name="Messages",
 
-            value=f"{cpu}%",
+            value=messages,
 
             inline=True
 
@@ -179,9 +388,9 @@ VOICE:
 
         embed.add_field(
 
-            name="RAM Usage",
+            name="Tracked Games",
 
-            value=f"{ram}%",
+            value=games,
 
             inline=True
 
@@ -189,9 +398,9 @@ VOICE:
 
         embed.add_field(
 
-            name="Guilds",
+            name="Notes",
 
-            value=len(bot.guilds),
+            value=notes,
 
             inline=True
 
@@ -199,6 +408,107 @@ VOICE:
 
         await ctx.send(
             embed=embed
+        )
+
+    # ========================================
+    # NOTES
+    # ========================================
+
+    @bot.command()
+    async def notes(
+        ctx,
+        member: discord.Member
+    ):
+
+        notes_list = user_notes.get(
+            member.id,
+            []
+        )
+
+        if not notes_list:
+
+            await ctx.send(
+                "No notes found."
+            )
+
+            return
+
+        output = "\n".join(
+            notes_list[-20:]
+        )
+
+        await ctx.send(
+
+            f"Notes for {member.name}:\n"
+            f"```{output}```"
+
+        )
+
+    # ========================================
+    # CLEAR NOTES
+    # ========================================
+
+    @bot.command()
+    async def clearnotes(
+        ctx,
+        member: discord.Member
+    ):
+
+        user_notes[member.id] = []
+
+        await ctx.send(
+
+            f"Cleared notes for "
+            f"{member.name}"
+
+        )
+
+    # ========================================
+    # SCAN HISTORY
+    # ========================================
+
+    @bot.command()
+    @owner_only()
+    async def scanhistory(ctx):
+
+        await ctx.send(
+            "Scanning channel history..."
+        )
+
+        scanned = 0
+
+        for channel in ctx.guild.text_channels:
+
+            try:
+
+                async for msg in channel.history(
+                    limit=500
+                ):
+
+                    if msg.author.bot:
+
+                        continue
+
+                    tracked_users.add(
+                        msg.author.id
+                    )
+
+                    user_messages.setdefault(
+                        msg.author.id,
+                        []
+                    ).append(msg.content)
+
+                    scanned += 1
+
+            except:
+
+                pass
+
+        await ctx.send(
+
+            f"Finished scanning.\n"
+            f"Messages scanned: {scanned}"
+
         )
 
     # ========================================
