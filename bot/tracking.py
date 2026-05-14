@@ -4,10 +4,14 @@
 
 import re
 import asyncio
+
 from datetime import datetime
+from collections import defaultdict
 
 import discord
+
 from textblob import TextBlob
+
 from discord.ext import tasks
 
 from bot.database import (
@@ -21,6 +25,18 @@ from bot.database import (
 )
 
 # ============================================
+# MEMORY TRACKING
+# ============================================
+
+tracked_users = set()
+
+user_messages = defaultdict(list)
+
+user_notes = defaultdict(list)
+
+user_games = defaultdict(list)
+
+# ============================================
 # WORD EXTRACTION
 # ============================================
 
@@ -29,6 +45,21 @@ def extract_words(text):
     return re.findall(
         r"\b[a-zA-Z']+\b",
         text.lower()
+    )
+
+# ============================================
+# ADD NOTE
+# ============================================
+
+def add_note(
+    user_id,
+    note
+):
+
+    user_notes[
+        user_id
+    ].append(
+        note
     )
 
 # ============================================
@@ -63,6 +94,20 @@ async def process_message_data(
 
     content = (
         message.content or ""
+    )
+
+    # ========================================
+    # MEMORY TRACKING
+    # ========================================
+
+    tracked_users.add(
+        message.author.id
+    )
+
+    user_messages[
+        message.author.id
+    ].append(
+        content
     )
 
     # ========================================
@@ -192,6 +237,20 @@ async def track_games(
             activity,
             discord.Game
         ):
+
+            # ====================================
+            # MEMORY TRACKING
+            # ====================================
+
+            user_games[
+                member.id
+            ].append(
+                activity.name
+            )
+
+            # ====================================
+            # DATABASE LOGGING
+            # ====================================
 
             await log_game(
                 member.id,
