@@ -3,9 +3,31 @@
 # ============================================
 
 import os
+import wave
 import discord
+import asyncio
 
 from discord.ext import commands
+
+from faster_whisper import WhisperModel
+
+# ============================================
+# WHISPER MODEL
+# ============================================
+
+model = WhisperModel(
+    "base",
+    device="cpu",
+    compute_type="int8"
+)
+
+# ============================================
+# RECORDING STORAGE
+# ============================================
+
+recording_active = False
+
+audio_chunks = []
 
 # ============================================
 # SETUP
@@ -60,27 +82,118 @@ def setup_voice(bot):
             )
 
     # ========================================
-    # TEST SUMMARY
+    # START RECORDING
+    # ========================================
+
+    @bot.command()
+    async def record(ctx):
+
+        global recording_active
+
+        if not ctx.voice_client:
+
+            await ctx.send(
+                "Bot is not in VC."
+            )
+
+            return
+
+        recording_active = True
+
+        await ctx.send(
+            "Recording started."
+        )
+
+    # ========================================
+    # STOP RECORDING
+    # ========================================
+
+    @bot.command()
+    async def stoprecord(ctx):
+
+        global recording_active
+
+        recording_active = False
+
+        await ctx.send(
+            "Recording stopped."
+        )
+
+        # fake placeholder audio path
+        audio_path = "data/recordings/test.wav"
+
+        # ====================================
+        # TRANSCRIBE
+        # ====================================
+
+        await ctx.send(
+            "Transcribing..."
+        )
+
+        segments, info = model.transcribe(
+            audio_path
+        )
+
+        transcript = ""
+
+        for segment in segments:
+
+            transcript += (
+                segment.text + "\n"
+            )
+
+        # ====================================
+        # SAVE TRANSCRIPT
+        # ====================================
+
+        with open(
+            "data/transcripts/latest.txt",
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(
+                transcript
+            )
+
+        await ctx.send(
+            "Transcript saved."
+        )
+
+    # ========================================
+    # VIEW SUMMARY
     # ========================================
 
     @bot.command()
     async def vcsummary(ctx):
 
-        fake_transcript = """
+        transcript_path = (
+            "data/transcripts/latest.txt"
+        )
 
-Zac talked about deployment problems,
-Discord bot hosting,
-and GitHub setup.
+        if not os.path.exists(
+            transcript_path
+        ):
 
-Another user discussed Minecraft mods
-and server performance.
+            await ctx.send(
+                "No transcript found."
+            )
 
-The overall tone was casual and technical.
+            return
 
-"""
+        with open(
+            transcript_path,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            transcript = f.read()
+
+        # shorten for Discord limit
+        transcript = transcript[:1800]
 
         await ctx.send(
 
-            f"```{fake_transcript}```"
+            f"```{transcript}```"
 
         )

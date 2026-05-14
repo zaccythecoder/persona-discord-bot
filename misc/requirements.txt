@@ -1,9 +1,13 @@
-discord.py==2.4.0
+discord.py[voice]==2.4.0
+PyNaCl==1.5.0
+
 aiosqlite
 textblob
 groq
 python-dotenv
-PyNaCl==1.5.0
+
 discord-ext-voice-recv
 faster-whisper
 ffmpeg-python
+wave
+numpy
