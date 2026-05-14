@@ -28,6 +28,10 @@ from bot.voice.voice_logging import (
     setup_voice
 )
 
+from bot.tracking import (
+    setup as setup_tracking
+)
+
 # ============================================
 # INTENTS
 # ============================================
@@ -60,6 +64,15 @@ bot.remove_command(
 )
 
 # ============================================
+# DM ONLY COMMANDS
+# ============================================
+
+@bot.check
+async def dm_only(ctx):
+
+    return ctx.guild is None
+
+# ============================================
 # READY EVENT
 # ============================================
 
@@ -86,6 +99,10 @@ async def on_command_error(
     error
 ):
 
+    # ========================================
+    # IGNORE UNKNOWN COMMANDS
+    # ========================================
+
     if isinstance(
         error,
         commands.CommandNotFound
@@ -93,15 +110,36 @@ async def on_command_error(
 
         return
 
+    # ========================================
+    # BLOCK SERVER COMMANDS
+    # ========================================
+
+    if isinstance(
+        error,
+        commands.CheckFailure
+    ):
+
+        return
+
+    # ========================================
+    # PRINT ERROR
+    # ========================================
+
     print(
         f"\nCOMMAND ERROR:\n{error}\n"
     )
 
-    await ctx.send(
+    try:
 
-        f"Error:\n```{error}```"
+        await ctx.send(
 
-    )
+            f"Error:\n```{error}```"
+
+        )
+
+    except:
+
+        pass
 
 # ============================================
 # STARTUP
@@ -126,6 +164,16 @@ async def startup():
 async def main():
 
     await startup()
+
+    # ========================================
+    # LOAD TRACKING
+    # ========================================
+
+    setup_tracking(bot)
+
+    print(
+        "Loaded tracking.py"
+    )
 
     # ========================================
     # LOAD AI COMMANDS
