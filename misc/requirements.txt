@@ -5,6 +5,7 @@ aiosqlite
 textblob
 groq
 python-dotenv
+psutil
 
 discord-ext-voice-recv==0.4.2a145
 
