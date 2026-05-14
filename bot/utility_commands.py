@@ -303,16 +303,18 @@ Replies: {stats[10]}
     # RESET
     # ========================================
 
-    @bot.command()
-    @owner_only()
-    async def reset(ctx):
+   @bot.command()
+   @owner_only()
+   async def reset(ctx):
 
-        await ctx.send(
-            "Restarting bot..."
-        )
+    await ctx.send(
+        "Restarting bot..."
+    )
 
-        print(
-            "\nRestart command received.\n"
-        )
+    print(
+        "\nRestart command received.\n"
+    )
 
-        os._exit(0)
+    await bot.close()
+
+    os._exit(0)

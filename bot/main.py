@@ -4,8 +4,6 @@
 
 import discord
 from discord.ext import commands
-import asyncio
-import traceback
 
 from bot.config import (
     TOKEN,
@@ -16,11 +14,34 @@ from bot.database import (
     init_db
 )
 
+from bot.ai_commands import (
+    setup as setup_ai
+)
+
+from bot.utility_commands import (
+    setup as setup_utility
+)
+
+from bot.voice_logging import (
+    setup_voice
+)
+
 # ============================================
-# BOT SETUP
+# INTENTS
 # ============================================
 
-intents = discord.Intents.all()
+intents = discord.Intents.default()
+
+intents.message_content = True
+intents.members = True
+intents.presences = True
+intents.guilds = True
+intents.messages = True
+intents.voice_states = True
+
+# ============================================
+# BOT
+# ============================================
 
 bot = commands.Bot(
     command_prefix=PREFIX,
@@ -29,76 +50,12 @@ bot = commands.Bot(
 )
 
 # ============================================
-# IMPORT MODULES
+# REMOVE DEFAULT HELP
 # ============================================
 
-try:
-
-    from bot import tracking
-
-    print(
-        "tracking.py loaded"
-    )
-
-except Exception as e:
-
-    print(
-        "FAILED TO LOAD tracking.py"
-    )
-
-    print(e)
-
-    traceback.print_exc()
-
-    raise
-
-try:
-
-    from bot import ai_commands
-
-    print(
-        "ai_commands.py loaded"
-    )
-
-except Exception as e:
-
-    print(
-        "FAILED TO LOAD ai_commands.py"
-    )
-
-    print(e)
-
-    traceback.print_exc()
-
-    raise
-
-try:
-
-    from bot import utility_commands
-
-    print(
-        "utility_commands.py loaded"
-    )
-
-except Exception as e:
-
-    print(
-        "FAILED TO LOAD utility_commands.py"
-    )
-
-    print(e)
-
-    traceback.print_exc()
-
-    raise
-
-# ============================================
-# REGISTER BOT OBJECT
-# ============================================
-
-tracking.setup(bot)
-ai_commands.setup(bot)
-utility_commands.setup(bot)
+bot.remove_command(
+    "help"
+)
 
 # ============================================
 # READY EVENT
@@ -107,70 +64,77 @@ utility_commands.setup(bot)
 @bot.event
 async def on_ready():
 
-    print("\n==============================")
+    print("\n================================")
     print("BOT ONLINE")
-    print("==============================")
-
-    print(
-        f"Logged in as: {bot.user}"
-    )
-
-    print(
-        f"Bot ID: {bot.user.id}"
-    )
-
-    print("==============================\n")
+    print(f"Logged in as: {bot.user}")
+    print("================================\n")
 
 # ============================================
-# MAIN STARTUP
+# STARTUP
+# ============================================
+
+async def startup():
+
+    print(
+        "\nInitializing database...\n"
+    )
+
+    await init_db()
+
+    print(
+        "Database initialized.\n"
+    )
+
+# ============================================
+# MAIN
 # ============================================
 
 async def main():
 
-    try:
+    await startup()
 
-        print(
-            "\nInitializing database...\n"
-        )
+    # ================================
+    # LOAD COMMAND MODULES
+    # ================================
 
-        await init_db()
+    setup_ai(bot)
 
-        print(
-            "Database initialized.\n"
-        )
+    print(
+        "ai_commands.py loaded"
+    )
 
-        print(
-            "Starting Discord bot...\n"
-        )
+    setup_utility(bot)
 
-        await bot.start(
-            TOKEN
-        )
+    print(
+        "utility_commands.py loaded"
+    )
 
-    except Exception as e:
+    setup_voice(bot)
 
-        print(
-            "\nBOT CRASHED\n"
-        )
+    print(
+        "voice_logging.py loaded"
+    )
 
-        print(e)
+    # ================================
+    # START BOT
+    # ================================
 
-        traceback.print_exc()
+    print(
+        "Starting Discord bot..."
+    )
 
-        raise
+    await bot.start(
+        TOKEN
+    )
 
 # ============================================
-# ENTRY POINT
+# RUN
 # ============================================
 
 if __name__ == "__main__":
 
-    try:
+    import asyncio
 
-        asyncio.run(main())
-
-    except KeyboardInterrupt:
-
-        print(
-            "\nBot stopped manually."
-        )
+    asyncio.run(
+        main()
+    )

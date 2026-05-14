@@ -4,3 +4,6 @@ textblob
 groq
 python-dotenv
 PyNaCl==1.5.0
+discord-ext-voice-recv
+faster-whisper
+ffmpeg-python
