@@ -14,7 +14,8 @@ from bot.config import (
 )
 
 from bot.database import (
-    init_db
+    init_db,
+    db
 )
 
 from bot.ai_commands import (
@@ -23,6 +24,10 @@ from bot.ai_commands import (
 
 from bot.utility_commands import (
     setup as setup_utility
+)
+
+from bot.debug_commands import (
+    setup as setup_debug
 )
 
 from bot.tracking import (
@@ -105,6 +110,28 @@ def owner_only():
     )
 
 # ============================================
+# GLOBAL COMMAND CHECK
+# ============================================
+
+@bot.check
+async def globally_block_guild_commands(
+    ctx
+):
+
+    # ========================================
+    # ALLOW DMS
+    # ========================================
+
+    if ctx.guild is None:
+        return True
+
+    # ========================================
+    # BLOCK SERVER COMMANDS
+    # ========================================
+
+    return False
+
+# ============================================
 # READY EVENT
 # ============================================
 
@@ -132,27 +159,11 @@ async def on_ready():
         f"{len(bot.guilds)} guild(s)"
     )
 
-# ============================================
-# GLOBAL COMMAND CHECK
-# ============================================
+    for guild in bot.guilds:
 
-@bot.check
-async def globally_block_guild_commands(
-    ctx
-):
-
-    # ========================================
-    # ALLOW DMS
-    # ========================================
-
-    if ctx.guild is None:
-        return True
-
-    # ========================================
-    # BLOCK SERVER COMMANDS
-    # ========================================
-
-    return False
+        print(
+            f"- {guild.name} ({guild.id})"
+        )
 
 # ============================================
 # ERROR HANDLER
@@ -179,20 +190,36 @@ async def on_command_error(
         return
 
     print(
-        f"\nCOMMAND ERROR:\n{error}\n"
+        "\n===================================="
+    )
+
+    print(
+        "COMMAND ERROR"
+    )
+
+    print(
+        "===================================="
+    )
+
+    print(error)
+
+    print(
+        "====================================\n"
     )
 
     try:
 
         await ctx.send(
 
-            f"Error:\n```{error}```"
+            f"Error:\n```{str(error)[:1900]}```"
 
         )
 
-    except:
+    except Exception as e:
 
-        pass
+        print(
+            f"Failed sending error: {e}"
+        )
 
 # ============================================
 # STARTUP
@@ -201,14 +228,36 @@ async def on_command_error(
 async def startup():
 
     print(
+        "\n===================================="
+    )
+
+    print(
+        "STARTUP"
+    )
+
+    print(
+        "===================================="
+    )
+
+    print(
         "\nInitializing database..."
     )
 
-    await init_db()
+    try:
 
-    print(
-        "Database initialized."
-    )
+        await init_db()
+
+        print(
+            "Database initialized."
+        )
+
+    except Exception as e:
+
+        print(
+            "\nDATABASE INIT FAILED\n"
+        )
+
+        print(e)
 
 # ============================================
 # MAIN
@@ -253,6 +302,16 @@ async def main():
     )
 
     # ========================================
+    # DEBUG COMMANDS
+    # ========================================
+
+    setup_debug(bot)
+
+    print(
+        "Loaded debug_commands.py"
+    )
+
+    # ========================================
     # VOICE SYSTEM
     # ========================================
 
@@ -263,16 +322,50 @@ async def main():
     )
 
     # ========================================
-    # START BOT
+    # START BOT LOOP
     # ========================================
 
     print(
-        "\nStarting Discord bot...\n"
+        "\n===================================="
     )
 
-    await bot.start(
-        TOKEN
+    print(
+        "STARTING DISCORD BOT"
     )
+
+    print(
+        "====================================\n"
+    )
+
+    while True:
+
+        try:
+
+            await bot.start(
+                TOKEN
+            )
+
+        except Exception as e:
+
+            print(
+                "\n===================================="
+            )
+
+            print(
+                "BOT CRASHED"
+            )
+
+            print(
+                "===================================="
+            )
+
+            print(e)
+
+            print(
+                "\nRestarting in 10 seconds...\n"
+            )
+
+            await asyncio.sleep(10)
 
 # ============================================
 # RUN
@@ -280,6 +373,34 @@ async def main():
 
 if __name__ == "__main__":
 
-    asyncio.run(
-        main()
-    )
+    try:
+
+        asyncio.run(
+            main()
+        )
+
+    except KeyboardInterrupt:
+
+        print(
+            "\nBot shutdown requested."
+        )
+
+    finally:
+
+        try:
+
+            if db:
+
+                asyncio.run(
+                    db.close()
+                )
+
+                print(
+                    "Database connection closed."
+                )
+
+        except Exception as e:
+
+            print(
+                f"Failed closing DB: {e}"
+            )

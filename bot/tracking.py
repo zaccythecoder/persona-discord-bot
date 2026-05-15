@@ -6,12 +6,10 @@ import re
 import asyncio
 
 from datetime import datetime
-from collections import defaultdict
 
 import discord
 
 from textblob import TextBlob
-
 from discord.ext import tasks
 
 from bot.database import (
@@ -25,16 +23,10 @@ from bot.database import (
 )
 
 # ============================================
-# MEMORY TRACKING
+# TRACKED USERS CACHE
 # ============================================
 
 tracked_users = set()
-
-user_messages = defaultdict(list)
-
-user_notes = defaultdict(list)
-
-user_games = defaultdict(list)
 
 # ============================================
 # WORD EXTRACTION
@@ -48,21 +40,6 @@ def extract_words(text):
     )
 
 # ============================================
-# ADD NOTE
-# ============================================
-
-def add_note(
-    user_id,
-    note
-):
-
-    user_notes[
-        user_id
-    ].append(
-        note
-    )
-
-# ============================================
 # MESSAGE PROCESSING
 # ============================================
 
@@ -70,7 +47,25 @@ async def process_message_data(
     message
 ):
 
+    # ========================================
+    # IGNORE BOTS
+    # ========================================
+
     if message.author.bot:
+        return
+
+    # ========================================
+    # IGNORE DMS
+    # ========================================
+
+    if not message.guild:
+        return
+
+    # ========================================
+    # IGNORE EMPTY
+    # ========================================
+
+    if not message.content:
         return
 
     # ========================================
@@ -92,22 +87,12 @@ async def process_message_data(
         message.author
     )
 
-    content = (
-        message.content or ""
-    )
-
-    # ========================================
-    # MEMORY TRACKING
-    # ========================================
-
     tracked_users.add(
         message.author.id
     )
 
-    user_messages[
-        message.author.id
-    ].append(
-        content
+    content = (
+        message.content or ""
     )
 
     # ========================================
@@ -124,11 +109,17 @@ async def process_message_data(
     # SENTIMENT
     # ========================================
 
-    sentiment = (
-        TextBlob(content)
-        .sentiment
-        .polarity
-    )
+    try:
+
+        sentiment = (
+            TextBlob(content)
+            .sentiment
+            .polarity
+        )
+
+    except:
+
+        sentiment = 0
 
     # ========================================
     # EMOJIS / QUESTIONS / REPLIES
@@ -171,54 +162,86 @@ async def process_message_data(
     # SAVE MESSAGE
     # ========================================
 
-    await save_message(
-        message
-    )
+    try:
+
+        await save_message(
+            message
+        )
+
+    except Exception as e:
+
+        print(
+            f"save_message error: {e}"
+        )
 
     # ========================================
     # UPDATE USER STATS
     # ========================================
 
-    await update_user_stats(
+    try:
 
-        user=message.author,
+        await update_user_stats(
 
-        word_count=word_count,
+            user=message.author,
 
-        sentiment=sentiment,
+            word_count=word_count,
 
-        morning=morning,
+            sentiment=sentiment,
 
-        afternoon=afternoon,
+            morning=morning,
 
-        night=night,
+            afternoon=afternoon,
 
-        emojis=emojis,
+            night=night,
 
-        questions=questions,
+            emojis=emojis,
 
-        replies=replies
+            questions=questions,
 
-    )
+            replies=replies
+
+        )
+
+    except Exception as e:
+
+        print(
+            f"update_user_stats error: {e}"
+        )
 
     # ========================================
     # SAVE WORDS
     # ========================================
 
-    for word in words:
+    try:
 
-        await add_word(
-            message.author.id,
-            word
+        for word in words:
+
+            await add_word(
+                message.author.id,
+                word
+            )
+
+    except Exception as e:
+
+        print(
+            f"add_word error: {e}"
         )
 
     # ========================================
     # MARK SCANNED
     # ========================================
 
-    await mark_message_scanned(
-        message.id
-    )
+    try:
+
+        await mark_message_scanned(
+            message.id
+        )
+
+    except Exception as e:
+
+        print(
+            f"mark_message_scanned error: {e}"
+        )
 
 # ============================================
 # GAME TRACKER
@@ -228,33 +251,32 @@ async def track_games(
     member
 ):
 
+    if member.bot:
+        return
+
     if not member.activities:
         return
 
     for activity in member.activities:
 
-        if isinstance(
-            activity,
-            discord.Game
-        ):
+        try:
 
-            # ====================================
-            # MEMORY TRACKING
-            # ====================================
+            if isinstance(
+                activity,
+                discord.Game
+            ):
 
-            user_games[
-                member.id
-            ].append(
-                activity.name
-            )
+                if activity.name:
 
-            # ====================================
-            # DATABASE LOGGING
-            # ====================================
+                    await log_game(
+                        member.id,
+                        activity.name
+                    )
 
-            await log_game(
-                member.id,
-                activity.name
+        except Exception as e:
+
+            print(
+                f"Game tracking error: {e}"
             )
 
 # ============================================
@@ -278,6 +300,9 @@ def start_game_tracker(bot):
         try:
 
             for guild in bot.guilds:
+
+                if guild is None:
+                    continue
 
                 for member in guild.members:
 
@@ -323,7 +348,22 @@ async def scan_history(
 
     for guild in ctx.bot.guilds:
 
-        for channel in guild.text_channels:
+        if guild is None:
+            continue
+
+        try:
+
+            channels = guild.text_channels
+
+        except Exception as e:
+
+            print(
+                f"Guild channel error: {e}"
+            )
+
+            continue
+
+        for channel in channels:
 
             try:
 
@@ -351,14 +391,18 @@ async def scan_history(
 
                     scanned += 1
 
-                    if scanned % 100 == 0:
+                    # ================================
+                    # PREVENT LOCKUPS
+                    # ================================
+
+                    if scanned % 50 == 0:
 
                         print(
                             f"Scanned {scanned} messages..."
                         )
 
                         await asyncio.sleep(
-                            0.2
+                            0
                         )
 
             except Exception as e:
@@ -384,10 +428,10 @@ async def scan_history(
 def setup(bot):
 
     # ========================================
-    # MESSAGE EVENT
+    # MESSAGE LISTENER
     # ========================================
 
-    @bot.event
+    @bot.listen()
     async def on_message(message):
 
         try:
@@ -401,10 +445,6 @@ def setup(bot):
             print(
                 f"Message tracking error: {e}"
             )
-
-        await bot.process_commands(
-            message
-        )
 
     # ========================================
     # READY EVENT

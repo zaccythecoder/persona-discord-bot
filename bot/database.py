@@ -11,7 +11,7 @@ from datetime import datetime
 from bot.config import DATABASE
 
 # ============================================
-# DATABASE PATH
+# DATABASE PATH FIX
 # ============================================
 
 BASE_DIR = os.path.dirname(
@@ -25,20 +25,9 @@ DATABASE_PATH = os.path.join(
     DATABASE
 )
 
-# ============================================
-# AUTO CREATE FOLDER
-# ============================================
-
-database_folder = os.path.dirname(
+DATABASE_FOLDER = os.path.dirname(
     DATABASE_PATH
 )
-
-if database_folder:
-
-    os.makedirs(
-        database_folder,
-        exist_ok=True
-    )
 
 # ============================================
 # DATABASE GLOBALS
@@ -59,229 +48,273 @@ async def init_db():
     if db:
         return
 
-    print(
-        "\n===================================="
-    )
-
-    print(
-        "INITIALIZING DATABASE"
-    )
-
-    print(
-        "===================================="
-    )
-
-    print(
-        f"Using database:\n{DATABASE_PATH}\n"
-    )
-
-    # ========================================
-    # CONNECT
-    # ========================================
-
-    db = await aiosqlite.connect(
-        DATABASE_PATH
-    )
-
-    print(
-        "SQLite connected."
-    )
-
-    # ========================================
-    # SQLITE SETTINGS
-    # ========================================
-
-    await db.execute(
-        "PRAGMA journal_mode=WAL"
-    )
-
-    await db.execute(
-        "PRAGMA synchronous=NORMAL"
-    )
-
-    # ========================================
-    # USERS TABLE
-    # ========================================
-
-    await db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-
-            user_id INTEGER PRIMARY KEY,
-
-            username TEXT,
-
-            total_messages INTEGER DEFAULT 0,
-
-            total_words INTEGER DEFAULT 0,
-
-            avg_sentiment REAL DEFAULT 0,
-
-            morning_msgs INTEGER DEFAULT 0,
-
-            afternoon_msgs INTEGER DEFAULT 0,
-
-            night_msgs INTEGER DEFAULT 0,
-
-            emojis_used INTEGER DEFAULT 0,
-
-            questions_asked INTEGER DEFAULT 0,
-
-            replies_sent INTEGER DEFAULT 0,
-
-            manual_notes TEXT DEFAULT ''
-        )
-        """
-    )
-
-    # ========================================
-    # WORD TRACKING
-    # ========================================
-
-    await db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS words (
-
-            user_id INTEGER,
-
-            word TEXT,
-
-            count INTEGER DEFAULT 0,
-
-            PRIMARY KEY (
-                user_id,
-                word
-            )
-        )
-        """
-    )
-
-    # ========================================
-    # MESSAGE HISTORY
-    # ========================================
-
-    await db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS message_history (
-
-            message_id INTEGER PRIMARY KEY,
-
-            user_id INTEGER,
-
-            username TEXT,
-
-            content TEXT,
-
-            timestamp TEXT,
-
-            channel_id INTEGER,
-
-            guild_id INTEGER
-        )
-        """
-    )
-
-    # ========================================
-    # GAMES TABLE
-    # ========================================
-
-    await db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS games (
-
-            user_id INTEGER,
-
-            game_name TEXT,
-
-            first_seen TEXT,
-
-            last_seen TEXT,
-
-            times_seen INTEGER DEFAULT 1,
-
-            PRIMARY KEY (
-                user_id,
-                game_name
-            )
-        )
-        """
-    )
-
-    # ========================================
-    # SCANNED MESSAGES
-    # ========================================
-
-    await db.execute(
-        """
-        CREATE TABLE IF NOT EXISTS scanned_messages (
-
-            message_id INTEGER PRIMARY KEY
-        )
-        """
-    )
-
-    # ========================================
-    # MIGRATIONS
-    # ========================================
-
     try:
+
+        # ====================================
+        # CREATE DATA FOLDER
+        # ====================================
+
+        os.makedirs(
+            DATABASE_FOLDER,
+            exist_ok=True
+        )
+
+        print(
+            f"\nUsing database:\n{DATABASE_PATH}\n"
+        )
+
+        # ====================================
+        # CONNECT
+        # ====================================
+
+        db = await aiosqlite.connect(
+            DATABASE_PATH
+        )
+
+        # ====================================
+        # PERFORMANCE
+        # ====================================
+
+        await db.execute(
+            "PRAGMA journal_mode=WAL"
+        )
+
+        await db.execute(
+            "PRAGMA synchronous=NORMAL"
+        )
+
+        # ====================================
+        # USERS TABLE
+        # ====================================
 
         await db.execute(
             """
-            ALTER TABLE users
-            ADD COLUMN manual_notes TEXT DEFAULT ''
+            CREATE TABLE IF NOT EXISTS users (
+
+                user_id INTEGER PRIMARY KEY,
+
+                username TEXT,
+
+                total_messages INTEGER DEFAULT 0,
+
+                total_words INTEGER DEFAULT 0,
+
+                avg_sentiment REAL DEFAULT 0,
+
+                morning_msgs INTEGER DEFAULT 0,
+
+                afternoon_msgs INTEGER DEFAULT 0,
+
+                night_msgs INTEGER DEFAULT 0,
+
+                emojis_used INTEGER DEFAULT 0,
+
+                questions_asked INTEGER DEFAULT 0,
+
+                replies_sent INTEGER DEFAULT 0,
+
+                manual_notes TEXT DEFAULT ''
+            )
             """
         )
 
-        print(
-            "Migration applied."
+        # ====================================
+        # WORD TRACKING
+        # ====================================
+
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS words (
+
+                user_id INTEGER,
+
+                word TEXT,
+
+                count INTEGER DEFAULT 0,
+
+                PRIMARY KEY (
+                    user_id,
+                    word
+                )
+            )
+            """
         )
 
-    except:
+        # ====================================
+        # MESSAGE HISTORY
+        # ====================================
 
-        pass
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS message_history (
 
-    # ========================================
-    # COMMIT
-    # ========================================
+                message_id INTEGER PRIMARY KEY,
 
-    await db.commit()
+                user_id INTEGER,
 
-    print(
-        "Tables committed."
-    )
+                username TEXT,
 
-    # ========================================
-    # VERIFY FILE EXISTS
-    # ========================================
+                content TEXT,
 
-    if os.path.exists(
-        DATABASE_PATH
-    ):
+                timestamp TEXT,
 
-        print(
-            "\nDatabase file created successfully."
+                channel_id INTEGER,
+
+                guild_id INTEGER
+            )
+            """
         )
 
-    else:
+        # ====================================
+        # GAMES TABLE
+        # ====================================
 
-        print(
-            "\nWARNING: Database file missing."
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS games (
+
+                user_id INTEGER,
+
+                game_name TEXT,
+
+                first_seen TEXT,
+
+                last_seen TEXT,
+
+                times_seen INTEGER DEFAULT 1,
+
+                PRIMARY KEY (
+                    user_id,
+                    game_name
+                )
+            )
+            """
         )
 
-    print(
-        "Database initialized successfully."
-    )
+        # ====================================
+        # SCANNED MESSAGES
+        # ====================================
 
-    print(
-        "====================================\n"
-    )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scanned_messages (
+
+                message_id INTEGER PRIMARY KEY
+            )
+            """
+        )
+
+        # ====================================
+        # VOICE TRANSCRIPTS
+        # ====================================
+
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS voice_transcripts (
+
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                user_id INTEGER,
+
+                username TEXT,
+
+                transcript TEXT,
+
+                timestamp TEXT
+            )
+            """
+        )
+
+        # ====================================
+        # RELATIONSHIPS
+        # ====================================
+
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS relationships (
+
+                user1 INTEGER,
+
+                user2 INTEGER,
+
+                interactions INTEGER DEFAULT 0,
+
+                PRIMARY KEY (
+                    user1,
+                    user2
+                )
+            )
+            """
+        )
+
+        # ====================================
+        # MIGRATIONS
+        # ====================================
+
+        try:
+
+            await db.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN manual_notes TEXT DEFAULT ''
+                """
+            )
+
+        except:
+            pass
+
+        # ====================================
+        # SAVE
+        # ====================================
+
+        await db.commit()
+
+        # ====================================
+        # FORCE FILE CREATION
+        # ====================================
+
+        with open(
+            DATABASE_PATH,
+            "a"
+        ):
+            pass
+
+        # ====================================
+        # VERIFY
+        # ====================================
+
+        if os.path.exists(
+            DATABASE_PATH
+        ):
+
+            print(
+                "Database file created successfully."
+            )
+
+        else:
+
+            print(
+                "WARNING: Database file missing."
+            )
+
+        print(
+            "Database initialized successfully."
+        )
+
+    except Exception as e:
+
+        print(
+            f"\nDATABASE INIT ERROR:\n{e}\n"
+        )
 
 # ============================================
 # ENSURE USER EXISTS
 # ============================================
 
 async def ensure_user(user):
+
+    if not db:
+        return
 
     async with db_lock:
 
@@ -327,6 +360,9 @@ async def save_message(
     message
 ):
 
+    if not db:
+        return
+
     async with db_lock:
 
         await db.execute(
@@ -368,6 +404,9 @@ async def is_message_scanned(
     message_id
 ):
 
+    if not db:
+        return False
+
     async with db_lock:
 
         cursor = await db.execute(
@@ -392,6 +431,9 @@ async def is_message_scanned(
 async def mark_message_scanned(
     message_id
 ):
+
+    if not db:
+        return
 
     async with db_lock:
 
@@ -429,6 +471,9 @@ async def update_user_stats(
     replies
 
 ):
+
+    if not db:
+        return
 
     async with db_lock:
 
@@ -498,6 +543,9 @@ async def add_word(
     word
 ):
 
+    if not db:
+        return
+
     async with db_lock:
 
         await db.execute(
@@ -534,6 +582,9 @@ async def log_game(
     user_id,
     game_name
 ):
+
+    if not db:
+        return
 
     if not game_name:
         return
@@ -615,6 +666,9 @@ async def get_user_stats(
     user_id
 ):
 
+    if not db:
+        return None
+
     async with db_lock:
 
         cursor = await db.execute(
@@ -638,6 +692,9 @@ async def get_top_words(
     user_id,
     limit=5
 ):
+
+    if not db:
+        return []
 
     async with db_lock:
 
@@ -664,6 +721,9 @@ async def get_top_words(
 async def get_games(
     user_id
 ):
+
+    if not db:
+        return []
 
     async with db_lock:
 
@@ -693,6 +753,9 @@ async def add_note(
     user_id,
     note
 ):
+
+    if not db:
+        return
 
     async with db_lock:
 
@@ -742,6 +805,9 @@ async def get_notes(
     user_id
 ):
 
+    if not db:
+        return ""
+
     async with db_lock:
 
         cursor = await db.execute(
@@ -770,6 +836,9 @@ async def clear_notes(
     user_id
 ):
 
+    if not db:
+        return
+
     async with db_lock:
 
         await db.execute(
@@ -790,6 +859,9 @@ async def clear_notes(
 # ============================================
 
 async def get_all_users():
+
+    if not db:
+        return []
 
     async with db_lock:
 
