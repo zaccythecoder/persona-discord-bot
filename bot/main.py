@@ -9,7 +9,8 @@ from discord.ext import commands
 
 from bot.config import (
     TOKEN,
-    PREFIX
+    PREFIX,
+    OWNER_ID
 )
 
 from bot.database import (
@@ -24,12 +25,12 @@ from bot.utility_commands import (
     setup as setup_utility
 )
 
-from bot.voice.voice_logging import (
-    setup_voice
-)
-
 from bot.tracking import (
     setup as setup_tracking
+)
+
+from bot.voice.voice_logging import (
+    setup_voice
 )
 
 # ============================================
@@ -64,13 +65,44 @@ bot.remove_command(
 )
 
 # ============================================
-# DM ONLY COMMANDS
+# OWNER CHECK
 # ============================================
 
-@bot.check
-async def dm_only(ctx):
+def owner_only():
 
-    return ctx.guild is None
+    async def predicate(ctx):
+
+        # ====================================
+        # ONLY DMS
+        # ====================================
+
+        if ctx.guild is not None:
+
+            await ctx.send(
+                "Commands only work in DMs."
+            )
+
+            return False
+
+        # ====================================
+        # OPTIONAL OWNER LOCK
+        # ====================================
+
+        if OWNER_ID != 0:
+
+            if ctx.author.id != OWNER_ID:
+
+                await ctx.send(
+                    "You are not authorized."
+                )
+
+                return False
+
+        return True
+
+    return commands.check(
+        predicate
+    )
 
 # ============================================
 # READY EVENT
@@ -79,15 +111,48 @@ async def dm_only(ctx):
 @bot.event
 async def on_ready():
 
-    print("\n====================================")
-    print("BOT ONLINE")
-    print(f"Logged in as: {bot.user}")
-    print("====================================\n")
+    print(
+        "\n===================================="
+    )
+
+    print(
+        "BOT ONLINE"
+    )
+
+    print(
+        f"Logged in as: {bot.user}"
+    )
+
+    print(
+        "====================================\n"
+    )
 
     print(
         f"Connected to "
         f"{len(bot.guilds)} guild(s)"
     )
+
+# ============================================
+# GLOBAL COMMAND CHECK
+# ============================================
+
+@bot.check
+async def globally_block_guild_commands(
+    ctx
+):
+
+    # ========================================
+    # ALLOW DMS
+    # ========================================
+
+    if ctx.guild is None:
+        return True
+
+    # ========================================
+    # BLOCK SERVER COMMANDS
+    # ========================================
+
+    return False
 
 # ============================================
 # ERROR HANDLER
@@ -99,10 +164,6 @@ async def on_command_error(
     error
 ):
 
-    # ========================================
-    # IGNORE UNKNOWN COMMANDS
-    # ========================================
-
     if isinstance(
         error,
         commands.CommandNotFound
@@ -110,20 +171,12 @@ async def on_command_error(
 
         return
 
-    # ========================================
-    # BLOCK SERVER COMMANDS
-    # ========================================
-
     if isinstance(
         error,
         commands.CheckFailure
     ):
 
         return
-
-    # ========================================
-    # PRINT ERROR
-    # ========================================
 
     print(
         f"\nCOMMAND ERROR:\n{error}\n"
@@ -163,10 +216,14 @@ async def startup():
 
 async def main():
 
+    # ========================================
+    # DATABASE
+    # ========================================
+
     await startup()
 
     # ========================================
-    # LOAD TRACKING
+    # TRACKING SYSTEM
     # ========================================
 
     setup_tracking(bot)
@@ -176,7 +233,7 @@ async def main():
     )
 
     # ========================================
-    # LOAD AI COMMANDS
+    # AI COMMANDS
     # ========================================
 
     setup_ai(bot)
@@ -186,7 +243,7 @@ async def main():
     )
 
     # ========================================
-    # LOAD UTILITY COMMANDS
+    # UTILITY COMMANDS
     # ========================================
 
     setup_utility(bot)
@@ -196,7 +253,7 @@ async def main():
     )
 
     # ========================================
-    # LOAD VOICE SYSTEM
+    # VOICE SYSTEM
     # ========================================
 
     setup_voice(bot)

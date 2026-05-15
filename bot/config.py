@@ -3,76 +3,88 @@
 # ============================================
 
 import os
+
 from dotenv import load_dotenv
-from groq import Groq
 
 # ============================================
-# LOAD .ENV
+# LOAD ENV
 # ============================================
 
 load_dotenv()
 
+print(
+    "config.py loaded successfully"
+)
+
 # ============================================
-# DISCORD SETTINGS
+# BOT SETTINGS
+# ============================================
+
+PREFIX = "!"
+
+# ============================================
+# DATABASE
+# ============================================
+
+DATABASE = "data/persona.db"
+
+# ============================================
+# TOKENS
 # ============================================
 
 TOKEN = os.getenv(
     "TOKEN"
 )
 
-PREFIX = os.getenv(
-    "PREFIX",
-    "!"
-)
-
-OWNER_ID = 1449536595060330588
-
-# ============================================
-# DATABASE SETTINGS
-# ============================================
-
-DATABASE = os.getenv(
-    "DATABASE",
-    "data/persona.db"
+GROQ_KEY = (
+    os.getenv("GROQ_KEY")
+    or
+    os.getenv("GROQ_API_KEY")
 )
 
 # ============================================
-# AI SETTINGS
+# OPTIONAL SETTINGS
 # ============================================
 
-MODEL = os.getenv(
-    "MODEL",
-    "llama-3.3-70b-versatile"
-)
-
-# ============================================
-# GROQ
-# ============================================
-
-GROQ_KEY = os.getenv(
-    "GROQ_KEY"
-)
-
-if not GROQ_KEY:
-
-    raise Exception(
-        "Missing GROQ_KEY in .env"
+OWNER_ID = int(
+    os.getenv(
+        "OWNER_ID",
+        "0"
     )
-
-groq_client = Groq(
-    api_key=GROQ_KEY
 )
 
 # ============================================
-# TOKEN CHECK
+# VALIDATION
 # ============================================
 
 if not TOKEN:
 
     raise Exception(
-        "Missing TOKEN in .env"
+        "Missing TOKEN environment variable"
     )
 
-print(
-    "config.py loaded successfully"
-)
+if not GROQ_KEY:
+
+    raise Exception(
+        "Missing GROQ_KEY / GROQ_API_KEY environment variable"
+    )
+
+# ============================================
+# VOICE SETTINGS
+# ============================================
+
+VOICE_LOGGING_ENABLED = True
+
+WHISPER_MODEL = "base"
+
+VOICE_SAVE_PATH = "voice_recordings"
+
+# ============================================
+# AI SETTINGS
+# ============================================
+
+AI_MODEL = "llama3-70b-8192"
+
+MAX_HISTORY_MESSAGES = 100
+
+MAX_ANALYSIS_MESSAGES = 500

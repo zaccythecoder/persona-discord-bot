@@ -11,7 +11,7 @@ from datetime import datetime
 from bot.config import DATABASE
 
 # ============================================
-# DATABASE PATH FIX
+# DATABASE PATH
 # ============================================
 
 BASE_DIR = os.path.dirname(
@@ -24,6 +24,21 @@ DATABASE_PATH = os.path.join(
     BASE_DIR,
     DATABASE
 )
+
+# ============================================
+# AUTO CREATE FOLDER
+# ============================================
+
+database_folder = os.path.dirname(
+    DATABASE_PATH
+)
+
+if database_folder:
+
+    os.makedirs(
+        database_folder,
+        exist_ok=True
+    )
 
 # ============================================
 # DATABASE GLOBALS
@@ -45,12 +60,36 @@ async def init_db():
         return
 
     print(
-        f"\nUsing database:\n{DATABASE_PATH}\n"
+        "\n===================================="
     )
+
+    print(
+        "INITIALIZING DATABASE"
+    )
+
+    print(
+        "===================================="
+    )
+
+    print(
+        f"Using database:\n{DATABASE_PATH}\n"
+    )
+
+    # ========================================
+    # CONNECT
+    # ========================================
 
     db = await aiosqlite.connect(
         DATABASE_PATH
     )
+
+    print(
+        "SQLite connected."
+    )
+
+    # ========================================
+    # SQLITE SETTINGS
+    # ========================================
 
     await db.execute(
         "PRAGMA journal_mode=WAL"
@@ -194,13 +233,26 @@ async def init_db():
             """
         )
 
+        print(
+            "Migration applied."
+        )
+
     except:
+
         pass
+
+    # ========================================
+    # COMMIT
+    # ========================================
 
     await db.commit()
 
+    print(
+        "Tables committed."
+    )
+
     # ========================================
-    # FORCE FILE CREATION
+    # VERIFY FILE EXISTS
     # ========================================
 
     if os.path.exists(
@@ -208,17 +260,21 @@ async def init_db():
     ):
 
         print(
-            "Database file created successfully."
+            "\nDatabase file created successfully."
         )
 
     else:
 
         print(
-            "WARNING: Database file missing."
+            "\nWARNING: Database file missing."
         )
 
     print(
         "Database initialized successfully."
+    )
+
+    print(
+        "====================================\n"
     )
 
 # ============================================
