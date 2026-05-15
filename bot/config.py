@@ -5,6 +5,7 @@
 import os
 
 from dotenv import load_dotenv
+from groq import Groq
 
 # ============================================
 # LOAD ENV
@@ -68,6 +69,14 @@ if not GROQ_KEY:
     raise Exception(
         "Missing GROQ_KEY / GROQ_API_KEY environment variable"
     )
+
+# ============================================
+# GROQ CLIENT
+# ============================================
+
+groq_client = Groq(
+    api_key=GROQ_KEY
+)
 
 # ============================================
 # VOICE SETTINGS
