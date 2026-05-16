@@ -1,45 +1,77 @@
 # ============================================
+
 # bot/main.py
+
 # ============================================
 
+import os
 import asyncio
 import discord
 
 from discord.ext import commands
 
 from bot.config import (
-    TOKEN,
-    PREFIX,
-    OWNER_ID
+TOKEN,
+PREFIX,
+OWNER_ID
 )
 
 from bot.database import (
-    init_db,
-    db
+init_db,
+db
 )
 
 from bot.ai_commands import (
-    setup as setup_ai
+setup as setup_ai
 )
 
 from bot.utility_commands import (
-    setup as setup_utility
+setup as setup_utility
 )
 
 from bot.debug_commands import (
-    setup as setup_debug
+setup as setup_debug
 )
 
 from bot.tracking import (
-    setup as setup_tracking
+setup as setup_tracking
 )
 
 from bot.voice.voice_logging import (
-    setup_voice
+setup_voice
 )
 
 # ============================================
+
+# CREATE REQUIRED DIRECTORIES
+
+# ============================================
+
+REQUIRED_DIRS = [
+
+```
+"data",
+"data/recordings",
+"data/transcripts",
+"data/summaries",
+"data/profiles"
+```
+
+]
+
+for directory in REQUIRED_DIRS:
+
+```
+os.makedirs(
+    directory,
+    exist_ok=True
+)
+```
+
+# ============================================
+
 # INTENTS
+
 # ============================================
 
 intents = discord.Intents.default()
@@ -52,355 +84,402 @@ intents.messages = True
 intents.voice_states = True
 
 # ============================================
+
 # BOT SETUP
+
 # ============================================
 
 bot = commands.Bot(
-    command_prefix=PREFIX,
-    intents=intents,
-    help_command=None
+
+```
+command_prefix=PREFIX,
+
+intents=intents,
+
+help_command=None
+```
+
 )
 
 # ============================================
+
 # REMOVE DEFAULT HELP
+
 # ============================================
 
 bot.remove_command(
-    "help"
+"help"
 )
 
 # ============================================
+
 # OWNER CHECK
+
 # ============================================
 
 def owner_only():
 
-    async def predicate(ctx):
+```
+async def predicate(ctx):
 
-        # ====================================
-        # ONLY DMS
-        # ====================================
+    # ====================================
+    # DM ONLY
+    # ====================================
 
-        if ctx.guild is not None:
+    if ctx.guild is not None:
+
+        await ctx.send(
+            "Commands only work in DMs."
+        )
+
+        return False
+
+    # ====================================
+    # OWNER LOCK
+    # ====================================
+
+    if OWNER_ID != 0:
+
+        if ctx.author.id != OWNER_ID:
 
             await ctx.send(
-                "Commands only work in DMs."
+                "You are not authorized."
             )
 
             return False
 
-        # ====================================
-        # OPTIONAL OWNER LOCK
-        # ====================================
+    return True
 
-        if OWNER_ID != 0:
-
-            if ctx.author.id != OWNER_ID:
-
-                await ctx.send(
-                    "You are not authorized."
-                )
-
-                return False
-
-        return True
-
-    return commands.check(
-        predicate
-    )
+return commands.check(predicate)
+```
 
 # ============================================
-# GLOBAL COMMAND CHECK
+
+# GLOBAL COMMAND BLOCK
+
 # ============================================
 
 @bot.check
-async def globally_block_guild_commands(
-    ctx
-):
+async def globally_block_guild_commands(ctx):
 
-    # ========================================
-    # ALLOW DMS
-    # ========================================
+```
+# Allow DMs
 
-    if ctx.guild is None:
-        return True
+if ctx.guild is None:
+    return True
 
-    # ========================================
-    # BLOCK SERVER COMMANDS
-    # ========================================
-
-    return False
+return False
+```
 
 # ============================================
+
 # READY EVENT
+
 # ============================================
 
 @bot.event
 async def on_ready():
 
-    print(
-        "\n===================================="
-    )
+```
+print("\n====================================")
+
+print("BOT ONLINE")
+
+print(f"Logged in as: {bot.user}")
+
+print("====================================\n")
+
+print(
+    f"Connected to "
+    f"{len(bot.guilds)} guild(s)"
+)
+
+for guild in bot.guilds:
 
     print(
-        "BOT ONLINE"
+        f"- {guild.name} "
+        f"({guild.id})"
     )
-
-    print(
-        f"Logged in as: {bot.user}"
-    )
-
-    print(
-        "====================================\n"
-    )
-
-    print(
-        f"Connected to "
-        f"{len(bot.guilds)} guild(s)"
-    )
-
-    for guild in bot.guilds:
-
-        print(
-            f"- {guild.name} ({guild.id})"
-        )
+```
 
 # ============================================
+
+# DISCONNECT EVENT
+
+# ============================================
+
+@bot.event
+async def on_disconnect():
+
+```
+print(
+    "\nBot disconnected from Discord."
+)
+```
+
+# ============================================
+
+# RESUME EVENT
+
+# ============================================
+
+@bot.event
+async def on_resumed():
+
+```
+print(
+    "\nBot connection resumed."
+)
+```
+
+# ============================================
+
 # ERROR HANDLER
+
 # ============================================
 
 @bot.event
 async def on_command_error(
-    ctx,
-    error
+ctx,
+error
 ):
 
-    if isinstance(
-        error,
-        commands.CommandNotFound
-    ):
+````
+if isinstance(
+    error,
+    commands.CommandNotFound
+):
 
-        return
+    return
 
-    if isinstance(
-        error,
-        commands.CheckFailure
-    ):
+if isinstance(
+    error,
+    commands.CheckFailure
+):
 
-        return
+    return
 
-    print(
-        "\n===================================="
+print("\n====================================")
+
+print("COMMAND ERROR")
+
+print("====================================")
+
+print(error)
+
+print("====================================\n")
+
+try:
+
+    await ctx.send(
+
+        f"Error:\n```{str(error)[:1900]}```"
+
     )
 
-    print(
-        "COMMAND ERROR"
-    )
+except Exception as e:
 
     print(
-        "===================================="
+        f"Failed sending error: {e}"
     )
-
-    print(error)
-
-    print(
-        "====================================\n"
-    )
-
-    try:
-
-        await ctx.send(
-
-            f"Error:\n```{str(error)[:1900]}```"
-
-        )
-
-    except Exception as e:
-
-        print(
-            f"Failed sending error: {e}"
-        )
+````
 
 # ============================================
+
 # STARTUP
+
 # ============================================
 
 async def startup():
 
-    print(
-        "\n===================================="
-    )
+```
+print("\n====================================")
+
+print("STARTUP")
+
+print("====================================")
+
+print("\nInitializing database...")
+
+try:
+
+    await init_db()
 
     print(
-        "STARTUP"
+        "Database initialized."
     )
+
+except Exception as e:
 
     print(
-        "===================================="
+        "\nDATABASE INIT FAILED\n"
     )
 
-    print(
-        "\nInitializing database..."
-    )
-
-    try:
-
-        await init_db()
-
-        print(
-            "Database initialized."
-        )
-
-    except Exception as e:
-
-        print(
-            "\nDATABASE INIT FAILED\n"
-        )
-
-        print(e)
+    print(e)
+```
 
 # ============================================
+
+# LOAD MODULES
+
+# ============================================
+
+def load_modules():
+
+```
+# ========================================
+# TRACKING
+# ========================================
+
+setup_tracking(bot)
+
+print(
+    "Loaded tracking.py"
+)
+
+# ========================================
+# AI COMMANDS
+# ========================================
+
+setup_ai(bot)
+
+print(
+    "Loaded ai_commands.py"
+)
+
+# ========================================
+# UTILITY COMMANDS
+# ========================================
+
+setup_utility(bot)
+
+print(
+    "Loaded utility_commands.py"
+)
+
+# ========================================
+# DEBUG COMMANDS
+# ========================================
+
+setup_debug(bot)
+
+print(
+    "Loaded debug_commands.py"
+)
+
+# ========================================
+# VOICE SYSTEM
+# ========================================
+
+setup_voice(bot)
+
+print(
+    "Loaded voice system"
+)
+```
+
+# ============================================
+
 # MAIN
+
 # ============================================
 
 async def main():
 
-    # ========================================
-    # DATABASE
-    # ========================================
+```
+# ========================================
+# STARTUP
+# ========================================
 
-    await startup()
+await startup()
 
-    # ========================================
-    # TRACKING SYSTEM
-    # ========================================
+# ========================================
+# LOAD SYSTEMS
+# ========================================
 
-    setup_tracking(bot)
+load_modules()
 
-    print(
-        "Loaded tracking.py"
-    )
+# ========================================
+# START LOOP
+# ========================================
 
-    # ========================================
-    # AI COMMANDS
-    # ========================================
+print("\n====================================")
 
-    setup_ai(bot)
+print("STARTING DISCORD BOT")
 
-    print(
-        "Loaded ai_commands.py"
-    )
+print("====================================\n")
 
-    # ========================================
-    # UTILITY COMMANDS
-    # ========================================
-
-    setup_utility(bot)
-
-    print(
-        "Loaded utility_commands.py"
-    )
-
-    # ========================================
-    # DEBUG COMMANDS
-    # ========================================
-
-    setup_debug(bot)
-
-    print(
-        "Loaded debug_commands.py"
-    )
-
-    # ========================================
-    # VOICE SYSTEM
-    # ========================================
-
-    setup_voice(bot)
-
-    print(
-        "Loaded voice system"
-    )
-
-    # ========================================
-    # START BOT LOOP
-    # ========================================
-
-    print(
-        "\n===================================="
-    )
-
-    print(
-        "STARTING DISCORD BOT"
-    )
-
-    print(
-        "====================================\n"
-    )
-
-    while True:
-
-        try:
-
-            await bot.start(
-                TOKEN
-            )
-
-        except Exception as e:
-
-            print(
-                "\n===================================="
-            )
-
-            print(
-                "BOT CRASHED"
-            )
-
-            print(
-                "===================================="
-            )
-
-            print(e)
-
-            print(
-                "\nRestarting in 10 seconds...\n"
-            )
-
-            await asyncio.sleep(10)
-
-# ============================================
-# RUN
-# ============================================
-
-if __name__ == "__main__":
+while True:
 
     try:
 
-        asyncio.run(
-            main()
+        await bot.start(
+            TOKEN
         )
 
-    except KeyboardInterrupt:
+    except discord.errors.LoginFailure:
 
         print(
-            "\nBot shutdown requested."
+            "\nINVALID DISCORD TOKEN\n"
         )
 
-    finally:
+        break
 
-        try:
+    except Exception as e:
 
-            if db:
+        print("\n====================================")
 
-                asyncio.run(
-                    db.close()
-                )
+        print("BOT CRASHED")
 
-                print(
-                    "Database connection closed."
-                )
+        print("====================================")
 
-        except Exception as e:
+        print(e)
+
+        print(
+            "\nRestarting in 10 seconds...\n"
+        )
+
+        await asyncio.sleep(10)
+```
+
+# ============================================
+
+# RUN
+
+# ============================================
+
+if **name** == "**main**":
+
+```
+try:
+
+    asyncio.run(
+        main()
+    )
+
+except KeyboardInterrupt:
+
+    print(
+        "\nBot shutdown requested."
+    )
+
+finally:
+
+    try:
+
+        if db:
+
+            asyncio.run(
+                db.close()
+            )
 
             print(
-                f"Failed closing DB: {e}"
+                "Database connection closed."
             )
+
+    except Exception as e:
+
+        print(
+            f"Failed closing DB: {e}"
+        )
+```

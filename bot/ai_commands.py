@@ -2,122 +2,116 @@
 # bot/ai_commands.py
 # ============================================
 
-from discord.ext import commands
 import discord
 
+from discord.ext import commands
+
 from bot.config import (
-    OWNER_ID,
     groq_client,
-    MODEL
+    MODEL,
+    OWNER_ID,
 )
 
 from bot.database import (
-    get_user_stats,
-    get_top_words,
+    db,
+    get_all_users,
     get_games,
     get_notes,
-    get_all_users,
-    db
+    get_top_words,
+    get_user_stats,
 )
 
 # ============================================
 # OWNER CHECK
 # ============================================
 
+
 def owner_only():
 
     async def predicate(ctx):
 
-        return ctx.author.id == OWNER_ID
+        # ====================================
+        # DM ONLY
+        # ====================================
+
+        if ctx.guild is not None:
+            await ctx.send("Commands only work in DMs.")
+
+            return False
+
+        # ====================================
+        # OWNER LOCK
+        # ====================================
+
+        if OWNER_ID != 0:
+            if ctx.author.id != OWNER_ID:
+                await ctx.send("You are not authorized.")
+
+                return False
+
+        return True
 
     return commands.check(predicate)
+
 
 # ============================================
 # FORMAT USER DATA
 # ============================================
 
-async def build_user_context(
-    user
-):
 
-    stats = await get_user_stats(
-        user.id
-    )
+async def build_user_context(user):
 
-    top_words = await get_top_words(
-        user.id,
-        10
-    )
+    stats = await get_user_stats(user.id)
 
-    games = await get_games(
-        user.id
-    )
+    top_words = await get_top_words(user.id, 10)
 
-    notes = await get_notes(
-        user.id
-    )
+    games = await get_games(user.id)
+
+    notes = await get_notes(user.id)
 
     # ========================================
     # RECENT MESSAGES
     # ========================================
 
-    cursor = await db.execute(
-        """
-        SELECT content
-        FROM message_history
-        WHERE user_id=?
-        ORDER BY message_id DESC
-        LIMIT 50
-        """,
-        (
-            user.id,
-        )
-    )
+    recent_messages = ""
 
-    messages = await cursor.fetchall()
+    try:
+        if db:
+            cursor = await db.execute(
+                """
+                SELECT content
+                FROM message_history
+                WHERE user_id=?
+                ORDER BY message_id DESC
+                LIMIT 50
+                """,
+                (user.id,),
+            )
 
-    recent_messages = "\n".join(
+            messages = await cursor.fetchall()
 
-        [
-            x[0]
-            for x in messages
-            if x[0]
-        ]
+            recent_messages = "\n".join([x[0] for x in messages if x[0]])
 
-    )
+    except Exception as e:
+        print(f"Recent message fetch error: {e}")
 
     # ========================================
     # WORDS
     # ========================================
 
-    top_words_text = "\n".join(
-
-        [
-            f"{word} ({count})"
-            for word, count in top_words
-        ]
-
-    )
+    top_words_text = "\n".join([f"{word} ({count})" for word, count in top_words])
 
     # ========================================
     # GAMES
     # ========================================
 
-    games_text = "\n".join(
-
-        [
-            f"{game} ({count})"
-            for game, count in games
-        ]
-
-    )
+    games_text = "\n".join([f"{game} ({count})" for game, count in games])
 
     # ========================================
     # STATS TEXT
     # ========================================
 
     if stats:
-
         stats_text = f"""
 Username: {stats[1]}
 Messages: {stats[2]}
@@ -132,7 +126,6 @@ Replies: {stats[10]}
 """
 
     else:
-
         stats_text = "No stats found."
 
     return f"""
@@ -154,43 +147,55 @@ Replies: {stats[10]}
 
 """
 
+
 # ============================================
 # AI REQUEST
 # ============================================
 
-async def ask_groq(
-    prompt
-):
+
+async def ask_groq(prompt):
 
     completion = groq_client.chat.completions.create(
-
         model=MODEL,
-
         messages=[
-
             {
                 "role": "system",
-
-                "content":
-
-                "You are an advanced Discord personality analysis AI."
+                "content": ("You are an advanced Discord personality analysis AI."),
             },
-
             {
                 "role": "user",
-
-                "content": prompt
-            }
-
-        ]
-
+                "content": prompt,
+            },
+        ],
     )
 
     return completion.choices[0].message.content
 
+
+# ============================================
+# SEND LONG RESPONSE
+# ============================================
+
+
+async def send_long_message(ctx, response):
+
+    if not response:
+        response = "No response."
+
+    if len(response) > 1900:
+        chunks = [response[i : i + 1900] for i in range(0, len(response), 1900)]
+
+        for chunk in chunks:
+            await ctx.send(f"```{chunk}```")
+
+    else:
+        await ctx.send(f"```{response}```")
+
+
 # ============================================
 # SETUP
 # ============================================
+
 
 def setup(bot):
 
@@ -200,18 +205,11 @@ def setup(bot):
 
     @bot.command()
     @owner_only()
-    async def persona(
-        ctx,
-        member: discord.Member
-    ):
+    async def persona(ctx, member: discord.User):
 
-        await ctx.send(
-            "Generating personality analysis..."
-        )
+        await ctx.send("Generating personality analysis...")
 
-        context = await build_user_context(
-            member
-        )
+        context = await build_user_context(member)
 
         prompt = f"""
 
@@ -236,42 +234,12 @@ USER DATA:
 """
 
         try:
+            response = await ask_groq(prompt)
 
-            response = await ask_groq(
-                prompt
-            )
-
-            if len(response) > 1900:
-
-                chunks = [
-
-                    response[i:i+1900]
-
-                    for i in range(
-                        0,
-                        len(response),
-                        1900
-                    )
-
-                ]
-
-                for chunk in chunks:
-
-                    await ctx.send(
-                        f"```{chunk}```"
-                    )
-
-            else:
-
-                await ctx.send(
-                    f"```{response}```"
-                )
+            await send_long_message(ctx, response)
 
         except Exception as e:
-
-            await ctx.send(
-                f"AI Error: {e}"
-            )
+            await ctx.send(f"AI Error: {e}")
 
     # ========================================
     # ASK USER
@@ -279,20 +247,11 @@ USER DATA:
 
     @bot.command()
     @owner_only()
-    async def ask(
-        ctx,
-        member: discord.Member,
-        *,
-        question
-    ):
+    async def ask(ctx, member: discord.User, *, question):
 
-        await ctx.send(
-            "Thinking..."
-        )
+        await ctx.send("Thinking...")
 
-        context = await build_user_context(
-            member
-        )
+        context = await build_user_context(member)
 
         prompt = f"""
 
@@ -307,42 +266,12 @@ USER DATA:
 """
 
         try:
+            response = await ask_groq(prompt)
 
-            response = await ask_groq(
-                prompt
-            )
-
-            if len(response) > 1900:
-
-                chunks = [
-
-                    response[i:i+1900]
-
-                    for i in range(
-                        0,
-                        len(response),
-                        1900
-                    )
-
-                ]
-
-                for chunk in chunks:
-
-                    await ctx.send(
-                        f"```{chunk}```"
-                    )
-
-            else:
-
-                await ctx.send(
-                    f"```{response}```"
-                )
+            await send_long_message(ctx, response)
 
         except Exception as e:
-
-            await ctx.send(
-                f"AI Error: {e}"
-            )
+            await ctx.send(f"AI Error: {e}")
 
     # ========================================
     # ASK ALL
@@ -350,22 +279,15 @@ USER DATA:
 
     @bot.command()
     @owner_only()
-    async def askall(
-        ctx,
-        *,
-        question
-    ):
+    async def askall(ctx, *, question):
 
-        await ctx.send(
-            "Analyzing all users..."
-        )
+        await ctx.send("Analyzing all users...")
 
         users = await get_all_users()
 
         combined = ""
 
         for user in users:
-
             combined += f"""
 
 Username: {user[1]}
@@ -387,39 +309,9 @@ USER DATA:
 """
 
         try:
+            response = await ask_groq(prompt)
 
-            response = await ask_groq(
-                prompt
-            )
-
-            if len(response) > 1900:
-
-                chunks = [
-
-                    response[i:i+1900]
-
-                    for i in range(
-                        0,
-                        len(response),
-                        1900
-                    )
-
-                ]
-
-                for chunk in chunks:
-
-                    await ctx.send(
-                        f"```{chunk}```"
-                    )
-
-            else:
-
-                await ctx.send(
-                    f"```{response}```"
-                )
+            await send_long_message(ctx, response)
 
         except Exception as e:
-
-            await ctx.send(
-                f"AI Error: {e}"
-            )
+            await ctx.send(f"AI Error: {e}")

@@ -1,13 +1,44 @@
 FROM python:3.11-slim
 
-WORKDIR /app
-
-COPY . .
+# ============================================
+# SYSTEM PACKAGES
+# ============================================
 
 RUN apt-get update && apt-get install -y \
     ffmpeg \
-    build-essential
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -r misc/requirements.txt
+# ============================================
+# WORKDIR
+# ============================================
+
+WORKDIR /app
+
+# ============================================
+# COPY FILES
+# ============================================
+
+COPY . .
+
+# ============================================
+# INSTALL PYTHON PACKAGES
+# ============================================
+
+RUN pip install --upgrade pip
+
+RUN pip install -r misc/requirements.txt
+
+# ============================================
+# CREATE DATA FOLDERS
+# ============================================
+
+RUN mkdir -p data
+RUN mkdir -p data/recordings
+RUN mkdir -p data/transcripts
+
+# ============================================
+# START BOT
+# ============================================
 
 CMD ["python", "-m", "bot.main"]

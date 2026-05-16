@@ -1,15 +1,12 @@
-discord.py[voice]==2.4.0
-PyNaCl==1.5.0
-
-aiosqlite
-textblob
-groq
-python-dotenv
-psutil
-
-discord-ext-voice-recv==0.4.2a145
-
-faster-whisper
-
-ffmpeg-python
-numpy
+discord.py>=2.4.0
+python-dotenv>=1.0.1
+groq>=0.9.0
+aiosqlite>=0.20.0
+textblob>=0.18.0
+psutil>=6.0.0
+SpeechRecognition>=3.10.4
+openai-whisper>=20240930
+ffmpeg-python>=0.2.0
+PyNaCl>=1.5.0
+pydub>=0.25.1
+audioop-lts>=0.2.1; python_version>="3.13"

@@ -2,9 +2,10 @@
 # bot/database.py
 # ============================================
 
-import os
-import aiosqlite
 import asyncio
+import os
+
+import aiosqlite
 
 from datetime import datetime
 
@@ -14,20 +15,11 @@ from bot.config import DATABASE
 # DATABASE PATH FIX
 # ============================================
 
-BASE_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
-)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DATABASE_PATH = os.path.join(
-    BASE_DIR,
-    DATABASE
-)
+DATABASE_PATH = os.path.join(BASE_DIR, DATABASE)
 
-DATABASE_FOLDER = os.path.dirname(
-    DATABASE_PATH
-)
+DATABASE_FOLDER = os.path.dirname(DATABASE_PATH)
 
 # ============================================
 # DATABASE GLOBALS
@@ -41,6 +33,7 @@ db_lock = asyncio.Lock()
 # INIT DATABASE
 # ============================================
 
+
 async def init_db():
 
     global db
@@ -49,39 +42,27 @@ async def init_db():
         return
 
     try:
-
         # ====================================
         # CREATE DATA FOLDER
         # ====================================
 
-        os.makedirs(
-            DATABASE_FOLDER,
-            exist_ok=True
-        )
+        os.makedirs(DATABASE_FOLDER, exist_ok=True)
 
-        print(
-            f"\nUsing database:\n{DATABASE_PATH}\n"
-        )
+        print(f"\nUsing database:\n{DATABASE_PATH}\n")
 
         # ====================================
         # CONNECT
         # ====================================
 
-        db = await aiosqlite.connect(
-            DATABASE_PATH
-        )
+        db = await aiosqlite.connect(DATABASE_PATH)
 
         # ====================================
         # PERFORMANCE
         # ====================================
 
-        await db.execute(
-            "PRAGMA journal_mode=WAL"
-        )
+        await db.execute("PRAGMA journal_mode=WAL")
 
-        await db.execute(
-            "PRAGMA synchronous=NORMAL"
-        )
+        await db.execute("PRAGMA synchronous=NORMAL")
 
         # ====================================
         # USERS TABLE
@@ -252,7 +233,6 @@ async def init_db():
         # ====================================
 
         try:
-
             await db.execute(
                 """
                 ALTER TABLE users
@@ -260,7 +240,7 @@ async def init_db():
                 """
             )
 
-        except:
+        except Exception:
             pass
 
         # ====================================
@@ -273,43 +253,29 @@ async def init_db():
         # FORCE FILE CREATION
         # ====================================
 
-        with open(
-            DATABASE_PATH,
-            "a"
-        ):
+        with open(DATABASE_PATH, "a", encoding="utf-8"):
             pass
 
         # ====================================
         # VERIFY
         # ====================================
 
-        if os.path.exists(
-            DATABASE_PATH
-        ):
-
-            print(
-                "Database file created successfully."
-            )
+        if os.path.exists(DATABASE_PATH):
+            print("Database file created successfully.")
 
         else:
+            print("WARNING: Database file missing.")
 
-            print(
-                "WARNING: Database file missing."
-            )
-
-        print(
-            "Database initialized successfully."
-        )
+        print("Database initialized successfully.")
 
     except Exception as e:
+        print(f"\nDATABASE INIT ERROR:\n{e}\n")
 
-        print(
-            f"\nDATABASE INIT ERROR:\n{e}\n"
-        )
 
 # ============================================
 # ENSURE USER EXISTS
 # ============================================
+
 
 async def ensure_user(user):
 
@@ -317,22 +283,18 @@ async def ensure_user(user):
         return
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT user_id
             FROM users
             WHERE user_id=?
             """,
-            (
-                user.id,
-            )
+            (user.id,),
         )
 
         exists = await cursor.fetchone()
 
         if not exists:
-
             await db.execute(
                 """
                 INSERT INTO users (
@@ -344,27 +306,23 @@ async def ensure_user(user):
 
                 VALUES (?, ?)
                 """,
-                (
-                    user.id,
-                    str(user)
-                )
+                (user.id, str(user)),
             )
 
             await db.commit()
+
 
 # ============================================
 # SAVE MESSAGE
 # ============================================
 
-async def save_message(
-    message
-):
+
+async def save_message(message):
 
     if not db:
         return
 
     async with db_lock:
-
         await db.execute(
             """
             INSERT OR IGNORE INTO message_history (
@@ -388,55 +346,49 @@ async def save_message(
                 message.content,
                 str(message.created_at),
                 message.channel.id,
-                message.guild.id
-                if message.guild
-                else 0
-            )
+                message.guild.id if message.guild else 0,
+            ),
         )
 
         await db.commit()
+
 
 # ============================================
 # CHECK IF MESSAGE SCANNED
 # ============================================
 
-async def is_message_scanned(
-    message_id
-):
+
+async def is_message_scanned(message_id):
 
     if not db:
         return False
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT message_id
             FROM scanned_messages
             WHERE message_id=?
             """,
-            (
-                message_id,
-            )
+            (message_id,),
         )
 
         exists = await cursor.fetchone()
 
         return bool(exists)
 
+
 # ============================================
 # MARK MESSAGE SCANNED
 # ============================================
 
-async def mark_message_scanned(
-    message_id
-):
+
+async def mark_message_scanned(message_id):
 
     if not db:
         return
 
     async with db_lock:
-
         await db.execute(
             """
             INSERT OR IGNORE INTO scanned_messages (
@@ -447,36 +399,25 @@ async def mark_message_scanned(
 
             VALUES (?)
             """,
-            (
-                message_id,
-            )
+            (message_id,),
         )
 
         await db.commit()
+
 
 # ============================================
 # UPDATE USER STATS
 # ============================================
 
+
 async def update_user_stats(
-
-    user,
-    word_count,
-    sentiment,
-    morning,
-    afternoon,
-    night,
-    emojis,
-    questions,
-    replies
-
+    user, word_count, sentiment, morning, afternoon, night, emojis, questions, replies
 ):
 
     if not db:
         return
 
     async with db_lock:
-
         await db.execute(
             """
             UPDATE users
@@ -511,43 +452,32 @@ async def update_user_stats(
             """,
             (
                 str(user),
-
                 word_count,
-
                 sentiment,
-
                 morning,
-
                 afternoon,
-
                 night,
-
                 emojis,
-
                 questions,
-
                 replies,
-
-                user.id
-            )
+                user.id,
+            ),
         )
 
         await db.commit()
+
 
 # ============================================
 # ADD WORD
 # ============================================
 
-async def add_word(
-    user_id,
-    word
-):
+
+async def add_word(user_id, word):
 
     if not db:
         return
 
     async with db_lock:
-
         await db.execute(
             """
             INSERT INTO words (
@@ -566,22 +496,18 @@ async def add_word(
 
                 count=count+1
             """,
-            (
-                user_id,
-                word
-            )
+            (user_id, word),
         )
 
         await db.commit()
+
 
 # ============================================
 # LOG GAME
 # ============================================
 
-async def log_game(
-    user_id,
-    game_name
-):
+
+async def log_game(user_id, game_name):
 
     if not db:
         return
@@ -589,12 +515,9 @@ async def log_game(
     if not game_name:
         return
 
-    now = str(
-        datetime.utcnow()
-    )
+    now = str(datetime.utcnow())
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT times_seen
@@ -602,16 +525,12 @@ async def log_game(
             WHERE user_id=?
             AND game_name=?
             """,
-            (
-                user_id,
-                game_name
-            )
+            (user_id, game_name),
         )
 
         existing = await cursor.fetchone()
 
         if existing:
-
             await db.execute(
                 """
                 UPDATE games
@@ -624,15 +543,10 @@ async def log_game(
                 WHERE user_id=?
                 AND game_name=?
                 """,
-                (
-                    now,
-                    user_id,
-                    game_name
-                )
+                (now, user_id, game_name),
             )
 
         else:
-
             await db.execute(
                 """
                 INSERT INTO games (
@@ -647,57 +561,46 @@ async def log_game(
 
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (
-                    user_id,
-                    game_name,
-                    now,
-                    now,
-                    1
-                )
+                (user_id, game_name, now, now, 1),
             )
 
         await db.commit()
+
 
 # ============================================
 # GET USER STATS
 # ============================================
 
-async def get_user_stats(
-    user_id
-):
+
+async def get_user_stats(user_id):
 
     if not db:
         return None
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT *
             FROM users
             WHERE user_id=?
             """,
-            (
-                user_id,
-            )
+            (user_id,),
         )
 
         return await cursor.fetchone()
+
 
 # ============================================
 # GET TOP WORDS
 # ============================================
 
-async def get_top_words(
-    user_id,
-    limit=5
-):
+
+async def get_top_words(user_id, limit=5):
 
     if not db:
         return []
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT word, count
@@ -706,27 +609,23 @@ async def get_top_words(
             ORDER BY count DESC
             LIMIT ?
             """,
-            (
-                user_id,
-                limit
-            )
+            (user_id, limit),
         )
 
         return await cursor.fetchall()
+
 
 # ============================================
 # GET GAMES
 # ============================================
 
-async def get_games(
-    user_id
-):
+
+async def get_games(user_id):
 
     if not db:
         return []
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT
@@ -738,36 +637,30 @@ async def get_games(
             WHERE user_id=?
             ORDER BY times_seen DESC
             """,
-            (
-                user_id,
-            )
+            (user_id,),
         )
 
         return await cursor.fetchall()
+
 
 # ============================================
 # NOTES
 # ============================================
 
-async def add_note(
-    user_id,
-    note
-):
+
+async def add_note(user_id, note):
 
     if not db:
         return
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT manual_notes
             FROM users
             WHERE user_id=?
             """,
-            (
-                user_id,
-            )
+            (user_id,),
         )
 
         existing = await cursor.fetchone()
@@ -777,11 +670,7 @@ async def add_note(
         if existing and existing[0]:
             old_notes = existing[0]
 
-        new_notes = (
-            old_notes
-            + "\n"
-            + note
-        ).strip()
+        new_notes = (old_notes + "\n" + note).strip()
 
         await db.execute(
             """
@@ -789,36 +678,30 @@ async def add_note(
             SET manual_notes=?
             WHERE user_id=?
             """,
-            (
-                new_notes,
-                user_id
-            )
+            (new_notes, user_id),
         )
 
         await db.commit()
+
 
 # ============================================
 # GET NOTES
 # ============================================
 
-async def get_notes(
-    user_id
-):
+
+async def get_notes(user_id):
 
     if not db:
         return ""
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT manual_notes
             FROM users
             WHERE user_id=?
             """,
-            (
-                user_id,
-            )
+            (user_id,),
         )
 
         result = await cursor.fetchone()
@@ -828,35 +711,34 @@ async def get_notes(
 
         return result[0] or ""
 
+
 # ============================================
 # CLEAR NOTES
 # ============================================
 
-async def clear_notes(
-    user_id
-):
+
+async def clear_notes(user_id):
 
     if not db:
         return
 
     async with db_lock:
-
         await db.execute(
             """
             UPDATE users
             SET manual_notes=''
             WHERE user_id=?
             """,
-            (
-                user_id,
-            )
+            (user_id,),
         )
 
         await db.commit()
 
+
 # ============================================
 # GET ALL USERS
 # ============================================
+
 
 async def get_all_users():
 
@@ -864,7 +746,6 @@ async def get_all_users():
         return []
 
     async with db_lock:
-
         cursor = await db.execute(
             """
             SELECT
@@ -880,3 +761,20 @@ async def get_all_users():
         )
 
         return await cursor.fetchall()
+
+
+# ============================================
+# CLOSE DATABASE
+# ============================================
+
+
+async def close_db():
+
+    global db
+
+    if db:
+        await db.close()
+
+        db = None
+
+        print("Database connection closed.")
