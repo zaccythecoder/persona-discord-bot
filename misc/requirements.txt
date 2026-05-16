@@ -1,12 +1,18 @@
-discord.py>=2.4.0
-python-dotenv>=1.0.1
-groq>=0.9.0
-aiosqlite>=0.20.0
-textblob>=0.18.0
-psutil>=6.0.0
-SpeechRecognition>=3.10.4
-openai-whisper>=20240930
-ffmpeg-python>=0.2.0
-PyNaCl>=1.5.0
-pydub>=0.25.1
-audioop-lts>=0.2.1; python_version>="3.13"
+discord.py==2.4.0
+python-dotenv==1.0.1
+aiosqlite==0.20.0
+
+# NLP / sentiment
+textblob==0.18.0.post0
+
+# system tools
+psutil==5.9.8
+
+# AI (CPU ONLY - no CUDA)
+torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+
+# Whisper (CPU version)
+openai-whisper==20231117
+
+# Groq API
+groq==0.9.0
