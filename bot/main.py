@@ -41,6 +41,8 @@ from bot.voice.voice_logging import (
 setup_voice
 )
 
+print("BOT STARTING...")
+
 # ============================================
 
 # CREATE REQUIRED DIRECTORIES

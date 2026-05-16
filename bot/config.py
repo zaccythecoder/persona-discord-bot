@@ -76,10 +76,10 @@ OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 # ============================================
 
 if not TOKEN:
-    raise Exception("Missing TOKEN environment variable")
+    raise Exception("Missing TOKEN")
 
 if not GROQ_KEY:
-    raise Exception("Missing GROQ_KEY / GROQ_API_KEY environment variable")
+    raise Exception("Missing GROQ_KEY")
 
 # ============================================
 # GROQ CLIENT
