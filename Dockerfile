@@ -33,21 +33,16 @@ RUN pip install -r misc/requirements.txt
 # CREATE DATA FOLDERS
 # ============================================
 
-RUN pip install --upgrade pip setuptools wheel
+RUN python -m pip install --upgrade pip setuptools wheel
 
-RUN pip install --no-cache-dir \
-    discord.py==2.4.0 \
-    python-dotenv==1.0.1 \
-    aiosqlite==0.20.0 \
-    textblob==0.18.0.post0 \
-    psutil==5.9.8 \
-    groq==0.9.0
+RUN pip config set global.progress_bar off
 
-RUN pip install --no-cache-dir \
-    numpy<2.0 \
-    av==12.2.0 \
-    ctranslate2==4.3.1 \
-    faster-whisper==1.0.2
+RUN pip install \
+    --no-cache-dir \
+    --retries 20 \
+    --timeout 120 \
+    --prefer-binary \
+    -r misc/requirements.txt
 
 # ============================================
 # START BOT
