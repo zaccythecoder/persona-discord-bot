@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 # ============================================
-# SYSTEM SETTINGS
+# ENVIRONMENT
 # ============================================
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -9,13 +9,13 @@ ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
 # ============================================
-# WORK DIRECTORY
+# WORKDIR
 # ============================================
 
 WORKDIR /app
 
 # ============================================
-# SYSTEM DEPENDENCIES
+# SYSTEM PACKAGES
 # ============================================
 
 RUN apt-get update && apt-get install -y \
@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ============================================
-# COPY FILES
+# COPY PROJECT
 # ============================================
 
 COPY . .
@@ -44,7 +44,7 @@ RUN python -m pip install --upgrade pip setuptools wheel
 RUN pip config set global.progress_bar off
 
 # ============================================
-# INSTALL LIGHT DEPENDENCIES FIRST
+# INSTALL MAIN DEPENDENCIES
 # ============================================
 
 RUN pip install \
@@ -58,10 +58,10 @@ RUN pip install \
     textblob==0.18.0.post0 \
     psutil==5.9.8 \
     groq==0.9.0 \
-    numpy<2.0
+    "numpy<2.0"
 
 # ============================================
-# OPTIONAL WHISPER STACK
+# OPTIONAL VOICE / WHISPER
 # ============================================
 
 RUN pip install \
@@ -83,4 +83,4 @@ RUN python -m textblob.download_corpora
 # START BOT
 # ============================================
 
-CMD ["python", "main.py"]
+CMD ["python", "-m", "bot.main"]
