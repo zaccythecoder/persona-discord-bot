@@ -51,24 +51,24 @@ print("BOT STARTING...")
 
 REQUIRED_DIRS = [
 
-```
+
 "data",
 "data/recordings",
 "data/transcripts",
 "data/summaries",
 "data/profiles"
-```
+
 
 ]
 
 for directory in REQUIRED_DIRS:
 
-```
+
 os.makedirs(
     directory,
     exist_ok=True
 )
-```
+
 
 # ============================================
 
@@ -93,13 +93,13 @@ intents.voice_states = True
 
 bot = commands.Bot(
 
-```
+
 command_prefix=PREFIX,
 
 intents=intents,
 
 help_command=None
-```
+
 
 )
 
@@ -121,7 +121,7 @@ bot.remove_command(
 
 def owner_only():
 
-```
+
 async def predicate(ctx):
 
     # ====================================
@@ -153,7 +153,7 @@ async def predicate(ctx):
     return True
 
 return commands.check(predicate)
-```
+
 
 # ============================================
 
@@ -164,14 +164,14 @@ return commands.check(predicate)
 @bot.check
 async def globally_block_guild_commands(ctx):
 
-```
+
 # Allow DMs
 
 if ctx.guild is None:
     return True
 
 return False
-```
+
 
 # ============================================
 
@@ -182,7 +182,7 @@ return False
 @bot.event
 async def on_ready():
 
-```
+
 print("\n====================================")
 
 print("BOT ONLINE")
@@ -202,7 +202,7 @@ for guild in bot.guilds:
         f"- {guild.name} "
         f"({guild.id})"
     )
-```
+
 
 # ============================================
 
@@ -213,11 +213,11 @@ for guild in bot.guilds:
 @bot.event
 async def on_disconnect():
 
-```
+
 print(
     "\nBot disconnected from Discord."
 )
-```
+
 
 # ============================================
 
@@ -228,11 +228,11 @@ print(
 @bot.event
 async def on_resumed():
 
-```
+
 print(
     "\nBot connection resumed."
 )
-```
+
 
 # ============================================
 
@@ -246,7 +246,7 @@ ctx,
 error
 ):
 
-````
+`
 if isinstance(
     error,
     commands.CommandNotFound
@@ -275,7 +275,7 @@ try:
 
     await ctx.send(
 
-        f"Error:\n```{str(error)[:1900]}```"
+        f"Error:\n{str(error)[:1900]}"
 
     )
 
@@ -284,7 +284,7 @@ except Exception as e:
     print(
         f"Failed sending error: {e}"
     )
-````
+`
 
 # ============================================
 
@@ -294,7 +294,7 @@ except Exception as e:
 
 async def startup():
 
-```
+
 print("\n====================================")
 
 print("STARTUP")
@@ -318,7 +318,7 @@ except Exception as e:
     )
 
     print(e)
-```
+
 
 # ============================================
 
@@ -328,7 +328,7 @@ except Exception as e:
 
 def load_modules():
 
-```
+
 # ========================================
 # TRACKING
 # ========================================
@@ -378,7 +378,7 @@ setup_voice(bot)
 print(
     "Loaded voice system"
 )
-```
+
 
 # ============================================
 
@@ -388,7 +388,7 @@ print(
 
 async def main():
 
-```
+
 # ========================================
 # STARTUP
 # ========================================
@@ -442,7 +442,7 @@ while True:
         )
 
         await asyncio.sleep(10)
-```
+
 
 # ============================================
 
@@ -452,7 +452,7 @@ while True:
 
 if **name** == "**main**":
 
-```
+
 try:
 
     asyncio.run(
@@ -484,4 +484,4 @@ finally:
         print(
             f"Failed closing DB: {e}"
         )
-```
+
