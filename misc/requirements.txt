@@ -2,17 +2,16 @@ discord.py==2.4.0
 python-dotenv==1.0.1
 aiosqlite==0.20.0
 
-# NLP / sentiment
+# NLP
 textblob==0.18.0.post0
 
-# system tools
+# system
 psutil==5.9.8
 
-# AI (CPU ONLY - no CUDA)
-torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
-
-# Whisper (CPU version)
-openai-whisper==20231117
-
-# Groq API
+# AI
 groq==0.9.0
+
+# Voice transcription (LIGHTWEIGHT)
+faster-whisper==1.0.3
+ctranslate2==4.4.0
+av==12.3.0
