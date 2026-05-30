@@ -112,27 +112,28 @@ bot.remove_command(
 )
 
 # ============================================
-
 # OWNER CHECK
-
 # ============================================
 
 def owner_only():
 
+    async def predicate(ctx):
 
-async def predicate(ctx):
+        # ====================================
+        # DM ONLY
+        # ====================================
 
-    # ====================================
-    # DM ONLY
-    # ====================================
+        if ctx.guild is not None:
 
-    if ctx.guild is not None:
+            await ctx.send(
+                "Commands only work in DMs."
+            )
 
-        await ctx.send(
-            "Commands only work in DMs."
-        )
+            return False
 
-        return False
+        return ctx.author.id == OWNER_ID
+
+    return commands.check(predicate)
 
     # ====================================
     # OWNER LOCK
