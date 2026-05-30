@@ -62,12 +62,10 @@ REQUIRED_DIRS = [
 ]
 
 for directory in REQUIRED_DIRS:
-
-
-os.makedirs(
-    directory,
-    exist_ok=True
-)
+    os.makedirs(
+        directory,
+        exist_ok=True
+    )
 
 
 # ============================================
