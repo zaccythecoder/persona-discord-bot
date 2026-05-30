@@ -1,86 +1,37 @@
 FROM python:3.11-slim
 
-# ============================================
-# ENVIRONMENT
-# ============================================
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PIP_NO_CACHE_DIR=1
-
-# ============================================
-# WORKDIR
-# ============================================
-
 WORKDIR /app
 
-# ============================================
-# SYSTEM PACKAGES
-# ============================================
+# Prevent .pyc + buffered logs
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
+# System deps (important for audio libs like av / whisper)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
-    gcc \
-    python3-dev \
+    git \
     build-essential \
+    libffi-dev \
+    libnacl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ============================================
-# COPY PROJECT
-# ============================================
+# Copy project
+COPY . /app
 
-COPY . .
+# Upgrade pip first (prevents broken downloads)
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# ============================================
-# UPGRADE PIP
-# ============================================
+# Install dependencies safely (prevents broken pipe failures)
+RUN pip install --no-cache-dir --timeout 120 --retries 20 \
+    -r misc/requirements.txt
 
-RUN python -m pip install --upgrade pip setuptools wheel
+# Create required runtime dirs
+RUN mkdir -p \
+    data \
+    data/recordings \
+    data/transcripts \
+    data/summaries \
+    data/profiles
 
-# ============================================
-# PIP SETTINGS
-# ============================================
-
-RUN pip config set global.progress_bar off
-
-# ============================================
-# INSTALL MAIN DEPENDENCIES
-# ============================================
-
-RUN pip install \
-    --no-cache-dir \
-    --retries 20 \
-    --timeout 120 \
-    --prefer-binary \
-    discord.py==2.4.0 \
-    python-dotenv==1.0.1 \
-    aiosqlite==0.20.0 \
-    textblob==0.18.0.post0 \
-    psutil==5.9.8 \
-    groq==0.9.0 \
-    "numpy<2.0"
-
-# ============================================
-# OPTIONAL VOICE / WHISPER
-# ============================================
-
-RUN pip install \
-    --no-cache-dir \
-    --retries 20 \
-    --timeout 120 \
-    --prefer-binary \
-    faster-whisper==1.0.2 \
-    ctranslate2==4.3.1 \
-    av==12.2.0
-
-# ============================================
-# DOWNLOAD NLTK DATA
-# ============================================
-
-RUN python -m textblob.download_corpora
-
-# ============================================
-# START BOT
-# ============================================
-
+# Start bot
 CMD ["python", "-m", "bot.main"]
